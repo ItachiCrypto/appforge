@@ -3,12 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
-import { 
-  Sandpack, 
-  SandpackPreview, 
-  SandpackProvider,
-  SandpackCodeEditor,
-} from '@codesandbox/sandpack-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -24,7 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DEFAULT_APP_FILES } from '@/lib/constants'
+import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType } from '@/components/preview'
 
 interface Message {
   id: string
@@ -43,7 +37,8 @@ export default function AppEditorPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [files, setFiles] = useState<Record<string, string>>(DEFAULT_APP_FILES)
+  const [appType, setAppType] = useState<AppType>('WEB')
+  const [files, setFiles] = useState<Record<string, string>>(DEFAULT_FILES.WEB)
   const [showCode, setShowCode] = useState(false)
   const [appName, setAppName] = useState('My App')
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
@@ -65,9 +60,18 @@ export default function AppEditorPage() {
         if (res.ok) {
           const app = await res.json()
           setAppName(app.name)
+          
+          // Set app type (WEB, IOS, ANDROID, DESKTOP, API)
+          const type = (app.type as AppType) || 'WEB'
+          setAppType(type)
+          
+          // Use app files or default for the type
           if (app.files && Object.keys(app.files).length > 0) {
             setFiles(app.files)
+          } else {
+            setFiles(DEFAULT_FILES[type] || DEFAULT_FILES.WEB)
           }
+          
           if (app.vercelUrl) {
             setDeployUrl(app.vercelUrl)
           }
@@ -130,13 +134,20 @@ export default function AppEditorPage() {
 
       // Update files if code was generated
       if (data.codeOutput?.files) {
-        setFiles(prev => ({ ...prev, ...data.codeOutput.files }))
+        // Normalize files: convert .tsx/.ts to .js for Sandpack compatibility
+        const normalizedFiles = normalizeFilesForSandpack(data.codeOutput.files)
         
-        // Save to backend
-        await fetch(`/api/apps/${appId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ files: { ...files, ...data.codeOutput.files } }),
+        setFiles(prev => {
+          const updated = { ...prev, ...normalizedFiles }
+          
+          // Save to backend (async, don't await)
+          fetch(`/api/apps/${appId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: updated }),
+          }).catch(err => console.error('Failed to save files:', err))
+          
+          return updated
         })
       }
     } catch (error) {
@@ -183,8 +194,12 @@ export default function AppEditorPage() {
     <div className="h-[calc(100vh-8rem)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold">{appName}</h1>
+        <div className="flex items-center gap-3">
+          <AppTypeIcon type={appType} className="w-5 h-5 text-muted-foreground" />
+          <div>
+            <h1 className="text-xl font-semibold">{appName}</h1>
+            <p className="text-xs text-muted-foreground">{getAppTypeLabel(appType)}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button 
@@ -318,32 +333,14 @@ export default function AppEditorPage() {
           </div>
         </div>
 
-        {/* Preview Panel */}
+        {/* Preview Panel - key forces re-render when files change */}
         <div className="bg-background border rounded-lg overflow-hidden">
-          <SandpackProvider
-            template="react"
+          <Preview 
+            key={JSON.stringify(files)}
             files={files}
-            theme="auto"
-            options={{
-              externalResources: [
-                "https://cdn.tailwindcss.com",
-              ],
-            }}
-          >
-            {showCode ? (
-              <SandpackCodeEditor 
-                style={{ height: '100%' }}
-                showLineNumbers
-                showTabs
-              />
-            ) : (
-              <SandpackPreview 
-                style={{ height: '100%' }}
-                showNavigator={false}
-                showRefreshButton
-              />
-            )}
-          </SandpackProvider>
+            appType={appType}
+            showCode={showCode}
+          />
         </div>
       </div>
     </div>

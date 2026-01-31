@@ -6,41 +6,38 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Sparkles, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
+import { Sparkles, ArrowRight, Loader2, AlertCircle, Globe, Smartphone, Monitor, Server } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { APP_TYPES, TEMPLATES_BY_TYPE, type AppTypeId } from '@/lib/constants'
 
-const TEMPLATES = [
-  {
-    id: 'landing',
-    name: 'Landing Page',
-    description: 'A beautiful landing page for your product or service',
-    prompt: 'Create a modern landing page with a hero section, features grid, and call-to-action',
-  },
-  {
-    id: 'dashboard',
-    name: 'Dashboard',
-    description: 'An admin dashboard with charts and metrics',
-    prompt: 'Create a dashboard with sidebar navigation, stat cards, and a data table',
-  },
-  {
-    id: 'portfolio',
-    name: 'Portfolio',
-    description: 'Showcase your work with a personal portfolio',
-    prompt: 'Create a creative portfolio page with project gallery and about section',
-  },
-  {
-    id: 'ecommerce',
-    name: 'E-commerce',
-    description: 'A product page for your online store',
-    prompt: 'Create a product listing page with filters and product cards',
-  },
-]
+const ICONS: Record<string, React.ElementType> = {
+  Globe,
+  Smartphone,
+  Monitor,
+  Server,
+}
+
+// App types with icons for the selector
+const appTypes = APP_TYPES.map(t => ({
+  id: t.id,
+  name: t.name,
+  desc: t.description,
+  icon: ICONS[t.icon] || Globe,
+}))
+
+// Default templates (WEB type)
+const TEMPLATES = TEMPLATES_BY_TYPE.WEB
 
 export default function NewAppPage() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [appType, setAppType] = useState<AppTypeId>('WEB')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Get templates for the selected app type
+  const templates = TEMPLATES_BY_TYPE[appType] || []
 
   const handleCreate = async (initialPrompt?: string) => {
     setIsLoading(true)
@@ -53,6 +50,7 @@ export default function NewAppPage() {
         body: JSON.stringify({
           name: name || 'New App',
           description: description || initialPrompt,
+          type: appType,
         }),
       })
       
@@ -96,7 +94,7 @@ export default function NewAppPage() {
             Give your app a name and describe what you want to build
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div>
             <label className="text-sm font-medium mb-2 block">App Name</label>
             <Input
@@ -105,6 +103,55 @@ export default function NewAppPage() {
               onChange={(e) => setName(e.target.value)}
             />
           </div>
+          
+          {/* App Type Selection */}
+          <div>
+            <label className="text-sm font-medium mb-3 block">App Type</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {APP_TYPES.map((type) => {
+                const Icon = ICONS[type.icon] || Globe
+                const isSelected = appType === type.id
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setAppType(type.id)}
+                    className={cn(
+                      "relative flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all overflow-hidden",
+                      "hover:border-primary/50 hover:bg-primary/5",
+                      isSelected 
+                        ? "border-primary bg-primary/10" 
+                        : "border-border bg-background"
+                    )}
+                  >
+                    {/* Gradient accent on selected */}
+                    {isSelected && (
+                      <div className={cn(
+                        "absolute inset-0 opacity-10 bg-gradient-to-br",
+                        type.color
+                      )} />
+                    )}
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br text-white",
+                      type.color
+                    )}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className={cn(
+                      "text-sm font-medium relative z-10",
+                      isSelected ? "text-primary" : "text-foreground"
+                    )}>
+                      {type.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground text-center relative z-10">
+                      {type.description}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          
           <div>
             <label className="text-sm font-medium mb-2 block">
               What do you want to build?
@@ -138,33 +185,42 @@ export default function NewAppPage() {
         </CardContent>
       </Card>
 
-      {/* Templates */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Or start with a template</h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          {TEMPLATES.map((template) => (
-            <Card 
-              key={template.id}
-              className="cursor-pointer hover:border-primary transition-colors"
-              onClick={() => {
-                setName(template.name)
-                handleCreate(template.prompt)
-              }}
-            >
-              <CardHeader>
-                <CardTitle className="text-lg">{template.name}</CardTitle>
-                <CardDescription>{template.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="ghost" className="p-0 h-auto text-primary">
-                  Use template
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Templates for selected type */}
+      {templates.length > 0 && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">
+            Or start with a template
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              for {APP_TYPES.find(t => t.id === appType)?.name}
+            </span>
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {templates.map((template) => (
+              <Card 
+                key={template.id}
+                className="cursor-pointer hover:border-primary transition-colors group"
+                onClick={() => {
+                  setName(template.name)
+                  handleCreate(template.prompt)
+                }}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                    {template.name}
+                  </CardTitle>
+                  <CardDescription>{template.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="ghost" className="p-0 h-auto text-primary">
+                    Use template
+                    <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

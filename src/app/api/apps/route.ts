@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs'
 import { prisma } from '@/lib/prisma'
-import { DEFAULT_APP_FILES, APP_LIMITS } from '@/lib/constants'
+import { DEFAULT_APP_FILES, APP_LIMITS, DEFAULT_FILES_BY_TYPE, APP_TYPES, type AppTypeId } from '@/lib/constants'
 import { generateAppName } from '@/lib/utils'
+import { AppType } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,14 +60,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse and validate request body
-    let body: { name?: string; description?: string }
+    let body: { name?: string; description?: string; type?: string }
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const { name, description } = body
+    const { name, description, type } = body
 
     // Validate inputs
     if (name !== undefined && (typeof name !== 'string' || name.length > 100)) {
@@ -75,6 +76,13 @@ export async function POST(req: NextRequest) {
     if (description !== undefined && (typeof description !== 'string' || description.length > 500)) {
       return NextResponse.json({ error: 'Description must be a string with max 500 characters' }, { status: 400 })
     }
+    
+    // Validate app type
+    const validTypes = APP_TYPES.map(t => t.id)
+    const appType = (type && validTypes.includes(type as AppTypeId) ? type : 'WEB') as AppTypeId
+
+    // Get default files for this type
+    const defaultFiles = DEFAULT_FILES_BY_TYPE[appType]
 
     // Create conversation first
     const conversation = await prisma.conversation.create({
@@ -84,12 +92,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create app with conversation
+    // Create app with conversation and type
     const app = await prisma.app.create({
       data: {
         name: name || generateAppName(),
         description,
-        files: DEFAULT_APP_FILES,
+        type: appType as AppType,
+        files: defaultFiles,
         userId: user.id,
         conversationId: conversation.id,
       },

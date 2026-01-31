@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============ USERS ============
@@ -46,6 +47,7 @@ model App {
   id          String   @id @default(cuid())
   name        String
   description String?
+  type        AppType  @default(WEB)
   
   // Code stored as JSON
   files       Json     @default("{}")
@@ -78,6 +80,14 @@ enum AppStatus {
   PREVIEW
   DEPLOYED
   ARCHIVED
+}
+
+enum AppType {
+  WEB
+  IOS
+  ANDROID
+  DESKTOP
+  API
 }
 
 model AppVersion {

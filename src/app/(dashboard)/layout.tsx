@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs'
 import { SignOutButton } from '@clerk/nextjs'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
@@ -20,20 +20,26 @@ export default async function DashboardLayout({
   
   const clerkUser = await currentUser()
   
-  // Get or create user in our database
-  let user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  })
-  
-  if (!user && clerkUser) {
-    user = await prisma.user.create({
-      data: {
-        clerkId: userId,
-        email: clerkUser.emailAddresses[0]?.emailAddress || '',
-        name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : null,
-        imageUrl: clerkUser.imageUrl,
-      },
+  // Get or create user in our database with error handling
+  let user = null
+  try {
+    user = await prisma.user.findUnique({
+      where: { clerkId: userId },
     })
+    
+    if (!user && clerkUser) {
+      user = await prisma.user.create({
+        data: {
+          clerkId: userId,
+          email: clerkUser.emailAddresses[0]?.emailAddress || '',
+          name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : null,
+          imageUrl: clerkUser.imageUrl,
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Database error in layout:', error)
+    // Continue with null user - the page will handle the error
   }
   
   return (

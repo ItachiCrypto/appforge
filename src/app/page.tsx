@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { 
   Sparkles, 
@@ -10,10 +11,14 @@ import {
   ArrowRight,
   Check,
   MessageSquare,
-  Eye
+  Eye,
+  LayoutDashboard
 } from 'lucide-react'
 
 export default function LandingPage() {
+  const { userId } = auth()
+  const isSignedIn = !!userId
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navbar */}
@@ -29,12 +34,23 @@ export default function LandingPage() {
             <Link href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
               Pricing
             </Link>
-            <Link href="/sign-in">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link href="/sign-up">
-              <Button>Get Started</Button>
-            </Link>
+            {isSignedIn ? (
+              <Link href="/dashboard">
+                <Button>
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/sign-in">
+                  <Button variant="ghost">Sign In</Button>
+                </Link>
+                <Link href="/sign-up">
+                  <Button>Get Started</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -64,12 +80,21 @@ export default function LandingPage() {
             </p>
             
             <div className="flex gap-4 justify-center flex-wrap">
-              <Link href="/sign-up">
-                <Button size="lg" className="text-lg px-8">
-                  Start Building Free
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
+              {isSignedIn ? (
+                <Link href="/dashboard">
+                  <Button size="lg" className="text-lg px-8">
+                    Go to Dashboard
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/sign-up">
+                  <Button size="lg" className="text-lg px-8">
+                    Start Building Free
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+              )}
               <Link href="#demo">
                 <Button size="lg" variant="outline" className="text-lg px-8">
                   Watch Demo
@@ -77,9 +102,11 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <p className="text-muted-foreground mt-4 text-sm">
-              No credit card required • 3 free apps included
-            </p>
+            {!isSignedIn && (
+              <p className="text-muted-foreground mt-4 text-sm">
+                No credit card required • 3 free apps included
+              </p>
+            )}
           </div>
 
           {/* Demo Preview */}
@@ -260,8 +287,10 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/sign-up" className="block">
-                <Button variant="outline" className="w-full">Get Started</Button>
+              <Link href={isSignedIn ? "/dashboard" : "/sign-up"} className="block">
+                <Button variant="outline" className="w-full">
+                  {isSignedIn ? "Go to Dashboard" : "Get Started"}
+                </Button>
               </Link>
             </div>
 
@@ -283,8 +312,10 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/sign-up" className="block">
-                <Button className="w-full">Start Free Trial</Button>
+              <Link href={isSignedIn ? "/billing" : "/sign-up"} className="block">
+                <Button className="w-full">
+                  {isSignedIn ? "Upgrade Plan" : "Start Free Trial"}
+                </Button>
               </Link>
             </div>
 
@@ -303,8 +334,10 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/sign-up" className="block">
-                <Button variant="outline" className="w-full">Get Started</Button>
+              <Link href={isSignedIn ? "/billing" : "/sign-up"} className="block">
+                <Button variant="outline" className="w-full">
+                  {isSignedIn ? "Upgrade Plan" : "Get Started"}
+                </Button>
               </Link>
             </div>
           </div>
@@ -319,13 +352,18 @@ export default function LandingPage() {
       <section className="py-24 border-t">
         <div className="container mx-auto px-4">
           <div className="bg-gradient-to-r from-violet-500/20 to-blue-500/20 border rounded-2xl p-12 text-center max-w-4xl mx-auto">
-            <h2 className="text-4xl font-bold mb-4">Ready to build your first app?</h2>
+            <h2 className="text-4xl font-bold mb-4">
+              {isSignedIn ? "Ready to create something amazing?" : "Ready to build your first app?"}
+            </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              Join thousands of creators building their own apps without writing code.
+              {isSignedIn 
+                ? "Head to your dashboard and start building your next app."
+                : "Join thousands of creators building their own apps without writing code."
+              }
             </p>
-            <Link href="/sign-up">
+            <Link href={isSignedIn ? "/dashboard" : "/sign-up"}>
               <Button size="lg" className="text-lg px-8">
-                Start Building Free
+                {isSignedIn ? "Go to Dashboard" : "Start Building Free"}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
