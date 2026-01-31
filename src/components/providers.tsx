@@ -10,13 +10,9 @@ const isClerkConfigured = () => {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // If Clerk is not configured, render children without ClerkProvider
-  if (!isClerkConfigured()) {
-    return <>{children}</>
-  }
-
   return (
     <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder'}
       appearance={{
         baseTheme: dark,
         variables: {
