@@ -19,7 +19,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           colorDanger: '#ef4444',
           colorSuccess: '#22c55e',
           colorWarning: '#f59e0b',
-          colorNeutral: '#737373',
           colorTextOnPrimaryBackground: '#ffffff',
           borderRadius: '0.5rem',
         },
