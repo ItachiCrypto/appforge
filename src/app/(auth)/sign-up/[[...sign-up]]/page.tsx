@@ -1,26 +1,22 @@
-import { SignUp, useSignUp } from "@clerk/nextjs"
+import { SignUp } from "@clerk/nextjs"
 
 export default function SignUpPage() {
-  const { isLoaded } = useSignUp()
-  
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading authentication...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
+    <div className="min-h-screen flex items-center justify-center">
       <SignUp 
         appearance={{
           elements: {
             rootBox: "mx-auto",
-            card: "bg-card/95 backdrop-blur border border-border shadow-xl",
+            card: "bg-[#0a0a0a] border border-[#262626] shadow-2xl",
+            headerTitle: "text-white",
+            headerSubtitle: "text-gray-400",
+            socialButtonsBlockButton: "bg-[#171717] border-[#262626] text-white hover:bg-[#262626]",
+            formFieldLabel: "text-gray-300",
+            formFieldInput: "bg-[#171717] border-[#262626] text-white",
+            footerActionLink: "text-violet-500 hover:text-violet-400",
+            formButtonPrimary: "bg-violet-600 hover:bg-violet-700",
+            dividerLine: "bg-[#262626]",
+            dividerText: "text-gray-500",
           }
         }}
       />
