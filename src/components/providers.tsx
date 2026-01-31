@@ -3,10 +3,13 @@
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 
+// Hardcoded key for Vercel deployment (env vars not working)
+const CLERK_KEY = 'pk_test_ZnVubnktYW50ZWF0ZXItOTUuY2xlcmsuYWNjb3VudHMuZGV2JA'
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || ''}
+      publishableKey={CLERK_KEY}
       appearance={{
         baseTheme: dark,
         variables: {
