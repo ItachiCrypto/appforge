@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ USERS ============
+
+model User {
+  id            String    @id @default(cuid())
+  clerkId       String    @unique
+  email         String    @unique
+  name          String?
+  imageUrl      String?
+  
+  // Subscription
+  plan          Plan      @default(FREE)
+  stripeCustomerId String? @unique
+  stripeSubscriptionId String?
+  
+  // BYOK - Encrypted
+  openaiKey     String?
+  anthropicKey  String?
+  
+  // Relations
+  apps          App[]
+  conversations Conversation[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  TEAM
+}
+
+// ============ APPS ============
+
+model App {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  // Code stored as JSON
+  files       Json     @default("{}")
+  
+  // Deploy info
+  vercelProjectId String?
+  vercelUrl       String?
+  deployedAt      DateTime?
+  
+  // Status
+  status      AppStatus @default(DRAFT)
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  
+  versions    AppVersion[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+enum AppStatus {
+  DRAFT
+  PREVIEW
+  DEPLOYED
+  ARCHIVED
+}
+
+model AppVersion {
+  id        String   @id @default(cuid())
+  version   Int
+  files     Json
+  message   String?
+  
+  appId     String
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([appId])
+}
+
+// ============ CONVERSATIONS ============
+
+model Conversation {
+  id        String    @id @default(cuid())
+  title     String?
+  
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  messages  Message[]
+  apps      App[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  role      MessageRole
+  content   String
+  
+  // If assistant generated code
+  codeOutput Json?
+  
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([conversationId])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
