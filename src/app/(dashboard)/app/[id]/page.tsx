@@ -20,6 +20,35 @@ import {
 import { cn } from '@/lib/utils'
 import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType } from '@/components/preview'
 
+// Helper to provide actionable guidance for common errors
+function getErrorActionHint(errorMessage: string): string | null {
+  const lowerError = errorMessage.toLowerCase()
+  
+  if (lowerError.includes('api key') || lowerError.includes('apikey')) {
+    return '💡 **Action:** Go to Settings → API Keys and add your OpenAI or Anthropic API key.'
+  }
+  if (lowerError.includes('unauthorized') || lowerError.includes('401')) {
+    return '💡 **Action:** Please sign in again to continue.'
+  }
+  if (lowerError.includes('rate limit') || lowerError.includes('429')) {
+    return '💡 **Action:** Too many requests. Please wait a moment and try again.'
+  }
+  if (lowerError.includes('quota') || lowerError.includes('billing') || lowerError.includes('credit balance')) {
+    if (lowerError.includes('anthropic')) {
+      return '💡 **Action:** Your Anthropic account is out of credits. Add credits at console.anthropic.com/settings/billing or switch to OpenAI in Settings.'
+    }
+    return '💡 **Action:** Your API account may have run out of credits. Check your billing (Anthropic: console.anthropic.com | OpenAI: platform.openai.com).'
+  }
+  if (lowerError.includes('invalid') && lowerError.includes('key')) {
+    return '💡 **Action:** Your API key appears to be invalid. Please check it in Settings → API Keys.'
+  }
+  if (lowerError.includes('timeout') || lowerError.includes('timed out')) {
+    return '💡 **Action:** The request took too long. Try a shorter prompt or try again.'
+  }
+  
+  return null
+}
+
 interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -67,13 +96,26 @@ export default function AppEditorPage() {
           
           // Use app files or default for the type
           if (app.files && Object.keys(app.files).length > 0) {
-            setFiles(app.files)
+            // Normalize files to .js for Sandpack compatibility (in case DB has .tsx)
+            setFiles(normalizeFilesForSandpack(app.files))
           } else {
             setFiles(DEFAULT_FILES[type] || DEFAULT_FILES.WEB)
           }
           
           if (app.vercelUrl) {
             setDeployUrl(app.vercelUrl)
+          }
+          
+          // Load conversation history if it exists
+          if (app.conversation?.messages && app.conversation.messages.length > 0) {
+            const loadedMessages: Message[] = app.conversation.messages.map((msg: { id: string; role: string; content: string; codeOutput?: unknown }) => ({
+              id: msg.id,
+              role: msg.role.toLowerCase() as 'user' | 'assistant',
+              content: msg.content,
+              codeOutput: msg.codeOutput as { files: Record<string, string> } | undefined,
+            }))
+            setMessages(loadedMessages)
+            hasInitialized.current = true // Don't process initial prompt if we have history
           }
         }
       } catch (error) {
@@ -119,9 +161,20 @@ export default function AppEditorPage() {
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to send message')
-
       const data = await res.json()
+
+      if (!res.ok) {
+        // Show actual API error message to user
+        const errorMessage = data.error || 'Failed to send message'
+        const actionHint = getErrorActionHint(errorMessage)
+        
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `⚠️ ${errorMessage}${actionHint ? `\n\n${actionHint}` : ''}`,
+        }])
+        return
+      }
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -152,10 +205,11 @@ export default function AppEditorPage() {
       }
     } catch (error) {
       console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, something went wrong. Please try again.',
+        content: `⚠️ Connection error: ${errorMessage}\n\nPlease check your internet connection and try again.`,
       }])
     } finally {
       setIsLoading(false)

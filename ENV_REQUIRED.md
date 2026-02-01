@@ -1,86 +1,96 @@
-# 🔐 Variables d'Environnement Requises
+# ENV_REQUIRED.md - Variables d'Environnement Requises
 
-Toutes ces variables doivent être configurées sur **Vercel Dashboard** :
-https://vercel.com/itachicryptos-projects/startup/settings/environment-variables
-
----
-
-## 🔴 CRITIQUES (App ne fonctionne pas sans)
+## Variables Obligatoires
 
 ### Base de données
-```
-DATABASE_URL=postgresql://user:password@host:6543/database?pgbouncer=true
-DIRECT_URL=postgresql://user:password@host:5432/database
-```
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `DATABASE_URL` | URL PostgreSQL (Supabase) | `postgresql://user:pass@host:5432/db` |
+| `DIRECT_URL` | URL directe pour Prisma migrations | Même format |
 
-**Note Supabase:** 
-- `DATABASE_URL` → Port `6543` (pooler/transaction mode)
-- `DIRECT_URL` → Port `5432` (connexion directe)
+### Authentification (Clerk)
+| Variable | Description |
+|----------|-------------|
+| `CLERK_SECRET_KEY` | Clé secrète Clerk (commence par `sk_`) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clé publique Clerk (commence par `pk_`) |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | URL de connexion (ex: `/sign-in`) |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | URL d'inscription (ex: `/sign-up`) |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Redirection après connexion (ex: `/dashboard`) |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Redirection après inscription (ex: `/dashboard`) |
 
-### Clerk Authentication
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
-CLERK_SECRET_KEY=sk_test_xxxxx
-```
-
-### OpenAI (pour la génération de code IA)
-```
-OPENAI_API_KEY=sk-xxxxx
-```
-
----
-
-## 🟡 OPTIONNELLES (certaines features)
-
-### Stripe (paiements)
-```
-STRIPE_SECRET_KEY=sk_test_xxxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxxx
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
-```
-
-### Clerk Webhooks
-```
-CLERK_WEBHOOK_SECRET=whsec_xxxxx
-```
-
-### App URLs
-```
-NEXT_PUBLIC_APP_URL=https://startup-azure-nine.vercel.app
-```
+### Application
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_APP_URL` | URL de l'application |
 
 ---
 
-## 📋 Checklist Vercel
+## Variables Optionnelles (mais importantes)
 
-Sur le dashboard Vercel, vérifier que ces variables existent :
+### IA / OpenAI
+| Variable | Description | Notes |
+|----------|-------------|-------|
+| `OPENAI_API_KEY` | Clé API OpenAI | **Optionnelle si BYOK activé** |
 
-- [ ] `DATABASE_URL` ← **CRITIQUE** (avec `?pgbouncer=true` si Supabase)
-- [ ] `DIRECT_URL` ← Pour les migrations Prisma
-- [ ] `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` ← **CRITIQUE**
-- [ ] `CLERK_SECRET_KEY` ← **CRITIQUE**
-- [ ] `OPENAI_API_KEY` ← **CRITIQUE** (sinon l'IA ne génère pas de code)
-- [ ] `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
-- [ ] `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
-- [ ] `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`
-- [ ] `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`
+**Modèle BYOK (Bring Your Own Key):**
+- Si `OPENAI_API_KEY` n'est pas définie, les utilisateurs doivent fournir leur propre clé dans Settings
+- La clé utilisateur est stockée en DB (`user.openaiKey`)
+- Priorité: `user.openaiKey` > `process.env.OPENAI_API_KEY`
 
 ---
 
-## 🚨 Erreurs courantes
+## Comment Ajouter les Variables
 
-### "Application error: server-side exception"
-→ `DATABASE_URL` manquante ou mauvais format
+### Développement Local
 
-### "OpenAI API key is required"
-→ `OPENAI_API_KEY` manquante
+1. Créer/modifier `.env.local` à la racine:
+```bash
+# .env.local
+OPENAI_API_KEY=sk-your-key-here
+```
 
-### "Unauthorized" sur /dashboard
-→ `CLERK_SECRET_KEY` manquante
+2. Redémarrer le serveur dev
 
-### Redirections vers /login au lieu de /sign-in
-→ `NEXT_PUBLIC_CLERK_SIGN_IN_URL` mal configurée
+### Production (Vercel)
+
+```bash
+# Ajouter une variable
+vercel env add OPENAI_API_KEY
+
+# Lister les variables
+vercel env ls
+
+# Supprimer une variable
+vercel env rm OPENAI_API_KEY
+```
+
+Après modification, redéployer:
+```bash
+vercel --prod
+```
+
+### Via Dashboard Vercel
+
+1. Aller sur https://vercel.com/[team]/[project]/settings/environment-variables
+2. Ajouter la variable
+3. Sélectionner les environnements (Production, Preview, Development)
+4. Redéployer
 
 ---
 
-*Généré par l'équipe AppForge*
+## Obtenir une Clé OpenAI
+
+1. Créer un compte sur https://platform.openai.com
+2. Aller dans API Keys: https://platform.openai.com/api-keys
+3. Créer une nouvelle clé
+4. **Important:** La clé commence par `sk-`
+
+---
+
+## Sécurité
+
+⚠️ **Ne jamais committer les clés dans le code!**
+
+- `.env.local` est dans `.gitignore`
+- Utiliser Vercel pour les variables de production
+- Les clés BYOK des utilisateurs sont chiffrées en DB

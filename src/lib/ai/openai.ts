@@ -17,14 +17,16 @@ export function getOpenAIClient(apiKey?: string): OpenAI {
 
 export async function streamChat(
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
-  apiKey?: string
+  apiKey?: string,
+  model: string = 'gpt-4o'
 ) {
   const openai = getOpenAIClient(apiKey)
   
   const stream = await openai.chat.completions.create({
-    model: 'gpt-4o',  // Updated: gpt-4o is faster, cheaper, and more capable
+    model,
     messages,
     stream: true,
+    stream_options: { include_usage: true },
     temperature: 0.7,
     max_tokens: 4000,
   })

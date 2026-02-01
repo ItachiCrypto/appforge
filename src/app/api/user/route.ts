@@ -90,8 +90,11 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       id: updatedUser.id,
-      hasOpenaiKey: !!updatedUser.openaiKey,
-      hasAnthropicKey: !!updatedUser.anthropicKey,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      plan: updatedUser.plan,
+      openaiKey: !!updatedUser.openaiKey,
+      anthropicKey: !!updatedUser.anthropicKey,
     })
   } catch (error) {
     console.error('Update user error:', error)

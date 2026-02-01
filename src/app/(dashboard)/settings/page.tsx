@@ -289,29 +289,42 @@ function ApiKeyInput({
   show: boolean
   onToggleShow: () => void
 }) {
+  const hasValue = value.length > 0
+  
   return (
     <div>
       <label className="text-sm font-medium mb-1.5 flex items-center gap-2">
         {label}
         {hasExisting && (
-          <span className="text-xs text-green-500 flex items-center gap-1">
-            <Check className="h-3 w-3" /> Configured
-          </span>
+          <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs font-normal">
+            <Check className="h-3 w-3 mr-1" /> Configured
+          </Badge>
         )}
       </label>
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Input
             type={show ? 'text' : 'password'}
-            placeholder={hasExisting ? '••••••••••••••••' : placeholder}
+            placeholder={hasExisting ? 'Enter new key to replace...' : placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon" onClick={onToggleShow}>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={onToggleShow}
+          disabled={!hasValue}
+          title={hasValue ? (show ? 'Hide key' : 'Show key') : 'Type a key to preview'}
+        >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
       </div>
+      {hasExisting && !hasValue && (
+        <p className="text-xs text-muted-foreground mt-1">
+          Key is saved securely. Enter a new key to replace it.
+        </p>
+      )}
     </div>
   )
 }

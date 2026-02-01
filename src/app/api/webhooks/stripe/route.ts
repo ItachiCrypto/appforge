@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { stripe } from '@/lib/stripe/client'
 import { prisma } from '@/lib/prisma'
 import { getPlanFromPriceId } from '@/lib/stripe/plans'
+import { addCredits } from '@/lib/credits/service'
 import Stripe from 'stripe'
 
 export async function POST(req: NextRequest) {
@@ -37,7 +38,20 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+        const metadata = session.metadata || {}
         
+        // Handle credit topup
+        if (metadata.type === 'credits' && metadata.userId && metadata.amountEuros) {
+          const amountEuros = parseInt(metadata.amountEuros, 10)
+          
+          if (amountEuros > 0) {
+            await addCredits(metadata.userId, amountEuros, session.id)
+            console.log(`Added ${amountEuros * 100} credits to user ${metadata.userId}`)
+          }
+          break
+        }
+        
+        // Handle subscription
         if (session.subscription && session.customer) {
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
