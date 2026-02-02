@@ -114,8 +114,23 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Determine model
-    const modelKey = requestedModel || user.preferredModel?.modelId || 'gpt-4o'
+    // Determine model (default to Claude Sonnet if no preference)
+    let modelKey = requestedModel || user.preferredModel?.modelId || 'claude-sonnet-4'
+    
+    // Check available platform keys
+    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
+    const hasOpenAIKey = !!process.env.OPENAI_API_KEY
+    
+    // Smart fallback: if requested provider has no key, try the other
+    const isRequestedAnthropic = modelKey.startsWith('claude')
+    if (isRequestedAnthropic && !hasAnthropicKey && hasOpenAIKey && !user.byokEnabled) {
+      // Fallback to OpenAI
+      modelKey = 'gpt-4o'
+    } else if (!isRequestedAnthropic && !hasOpenAIKey && hasAnthropicKey && !user.byokEnabled) {
+      // Fallback to Anthropic
+      modelKey = 'claude-sonnet-4'
+    }
+    
     const isAnthropicModel = modelKey.startsWith('claude')
     const apiModelName = MODEL_API_NAMES[modelKey] || modelKey
 
