@@ -284,6 +284,22 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type, ...data })}\n\n`))
         }
 
+        // DEBUG: Log tools status
+        console.log('[Chat API] Starting stream:', {
+          isAnthropicModel,
+          toolsEnabled,
+          hasToolContext: toolContext !== null,
+          appId,
+          modelKey,
+        })
+        
+        // Send debug info to frontend
+        send('debug', {
+          toolsEnabled,
+          hasToolContext: toolContext !== null,
+          model: modelKey,
+        })
+
         try {
           if (isAnthropicModel) {
             await streamAnthropicWithTools({
@@ -575,6 +591,7 @@ async function streamAnthropicWithTools(options: StreamOptions) {
     }
 
     // Check if we should continue (tool use)
+    console.log('[Chat API] Stop reason:', stopReason, 'enableTools:', enableTools, 'hasContext:', !!toolContext)
     if (stopReason !== 'tool_use' || !enableTools || !toolContext) {
       continueLoop = false
       continue
@@ -591,6 +608,7 @@ async function streamAnthropicWithTools(options: StreamOptions) {
     }
 
     // Send tool calls to client
+    console.log('[Chat API] Tool calls detected:', toolUseBlocks.length, toolUseBlocks.map(t => t.name))
     for (const toolUse of toolUseBlocks) {
       send('tool_call', {
         id: toolUse.id,

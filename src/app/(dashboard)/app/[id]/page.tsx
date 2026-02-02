@@ -261,12 +261,16 @@ export default function AppEditorPage() {
                 
                 const data = JSON.parse(sanitizedJson)
                 
-                if (data.type === 'chunk') {
+                if (data.type === 'debug') {
+                  // Debug info from backend
+                  console.log('[Frontend] Debug from API:', data)
+                } else if (data.type === 'chunk') {
                   fullContent += data.content
                   setMessages(prev => prev.map(m => 
                     m.id === assistantId ? { ...m, content: fullContent } : m
                   ))
                 } else if (data.type === 'tool_call') {
+                  console.log('[Frontend] Tool call received:', data)
                   // BUG FIX #1: Handle tool_call events
                   toolsWereUsed = true
                   setToolCalls(prev => [...prev, {
