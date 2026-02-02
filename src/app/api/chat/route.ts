@@ -339,9 +339,9 @@ export async function POST(req: NextRequest) {
           // Parse code from text OR fetch from DB if tools were used
           let codeOutput = parseCodeBlocks(fullContent)
           
-          // FIX BUG #6: ALWAYS fetch files from DB before saving the message
-          // Tools may have written files directly to DB, regardless of what parseCodeBlocks found
-          // This ensures we never save with null codeOutput when files exist
+          // FIX BUG #7: ALWAYS return DB files as source of truth
+          // The AI tools write directly to DB, so DB is always the canonical state.
+          // Don't compare with originalFiles - just return what's in DB.
           if (appId) {
             const updatedApp = await prisma.app.findUnique({
               where: { id: appId },
@@ -349,17 +349,8 @@ export async function POST(req: NextRequest) {
             })
             if (updatedApp?.files && typeof updatedApp.files === 'object') {
               const dbFiles = updatedApp.files as Record<string, string>
-              // Check if files changed compared to original
-              const originalFiles = codeFiles as Record<string, string>
-              const hasChanges = Object.keys(dbFiles).some(key => 
-                dbFiles[key] !== originalFiles[key]
-              ) || Object.keys(dbFiles).length !== Object.keys(originalFiles).length
-              
-              if (hasChanges) {
-                // DB files take priority over parseCodeBlocks when files changed
-                codeOutput = { files: dbFiles }
-              } else if (!codeOutput && Object.keys(dbFiles).length > 0) {
-                // If no codeOutput from parsing but we have files in DB, use them
+              if (Object.keys(dbFiles).length > 0) {
+                // DB is source of truth - always return current DB state
                 codeOutput = { files: dbFiles }
               }
             }

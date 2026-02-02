@@ -317,8 +317,32 @@ export default function AppEditorPage() {
         }
       }
 
-      // Update files if code was generated
-      if (codeOutput?.files) {
+      // FIX BUG #7: Handle file updates based on whether tools were used
+      // If tools were used, DB is source of truth - DON'T overwrite with local state
+      // If no tools, use codeOutput from parseCodeBlocks (legacy fallback mode)
+      if (toolsWereUsed) {
+        // Tools wrote directly to DB - just use codeOutput from backend (which is now always DB state)
+        if (codeOutput?.files) {
+          const normalizedFiles = normalizeFilesForSandpack(codeOutput.files)
+          setFiles(normalizedFiles) // Replace entirely with DB state, don't merge
+          setPreviewVersion(v => v + 1)
+        } else {
+          // Fallback: refresh from API if codeOutput is somehow null
+          try {
+            const appRes = await fetch(`/api/apps/${appId}`)
+            if (appRes.ok) {
+              const app = await appRes.json()
+              if (app.files && Object.keys(app.files).length > 0) {
+                setFiles(normalizeFilesForSandpack(app.files))
+                setPreviewVersion(v => v + 1)
+              }
+            }
+          } catch (err) {
+            console.error('Failed to refresh files after tool use:', err)
+          }
+        }
+      } else if (codeOutput?.files) {
+        // Legacy mode (no tools): merge codeOutput and save to DB
         const normalizedFiles = normalizeFilesForSandpack(codeOutput.files)
         
         setFiles(prev => {
@@ -333,23 +357,7 @@ export default function AppEditorPage() {
           return updated
         })
         
-        // BUG FIX #3: Increment preview version for reliable refresh
         setPreviewVersion(v => v + 1)
-      } else if (toolsWereUsed) {
-        // BUG FIX #2: Force refresh files from API if tools were used but no codeOutput
-        try {
-          const appRes = await fetch(`/api/apps/${appId}`)
-          if (appRes.ok) {
-            const app = await appRes.json()
-            if (app.files && Object.keys(app.files).length > 0) {
-              setFiles(normalizeFilesForSandpack(app.files))
-              // BUG FIX #3: Increment preview version
-              setPreviewVersion(v => v + 1)
-            }
-          }
-        } catch (err) {
-          console.error('Failed to refresh files after tool use:', err)
-        }
       }
     } catch (error) {
       console.error('Chat error:', error)
