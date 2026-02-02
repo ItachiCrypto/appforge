@@ -242,7 +242,7 @@ export default function AppsPage() {
                     </Badge>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {formatDate(app.updatedAt)}
+                    {formatDate(new Date(app.updatedAt))}
                   </span>
                 </div>
                 <Link href={`/app/${app.id}`} className="block mt-4">
