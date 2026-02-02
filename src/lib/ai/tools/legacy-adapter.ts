@@ -59,6 +59,7 @@ export class LegacyFileAdapter {
   
   /**
    * Get all files from an App as a Record<string, string>
+   * FIX BUG #7: Returns normalized and deduplicated files
    */
   private async getAppFiles(appId: string): Promise<Record<string, string>> {
     const app = await prisma.app.findUnique({
@@ -70,16 +71,23 @@ export class LegacyFileAdapter {
       throw new LegacyAppNotFoundError(appId)
     }
     
-    return (app.files as Record<string, string>) || {}
+    const rawFiles = (app.files as Record<string, string>) || {}
+    
+    // FIX BUG #7: Normalize all paths on read and deduplicate
+    return this.normalizeAllPaths(rawFiles)
   }
   
   /**
    * Save files back to the App
+   * FIX BUG #7: Always normalize paths before saving
    */
   private async saveAppFiles(appId: string, files: Record<string, string>): Promise<void> {
+    // FIX BUG #7: Normalize all paths before saving to prevent duplicates
+    const normalizedFiles = this.normalizeAllPaths(files)
+    
     await prisma.app.update({
       where: { id: appId },
-      data: { files },
+      data: { files: normalizedFiles },
     })
   }
   
@@ -87,10 +95,43 @@ export class LegacyFileAdapter {
    * Normalize path to always start with /
    */
   private normalizePath(path: string): string {
-    if (!path.startsWith('/')) {
-      return '/' + path
+    // Trim whitespace
+    let normalized = path.trim()
+    // Ensure leading /
+    if (!normalized.startsWith('/')) {
+      normalized = '/' + normalized
     }
-    return path
+    // Remove duplicate slashes
+    normalized = normalized.replace(/\/+/g, '/')
+    // Remove trailing slash (except for root)
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1)
+    }
+    return normalized
+  }
+  
+  /**
+   * FIX BUG #7: Normalize all paths in a files object and remove duplicates
+   * If both /path and path exist, prefer the one with content (or /path)
+   */
+  private normalizeAllPaths(files: Record<string, string>): Record<string, string> {
+    const normalized: Record<string, string> = {}
+    
+    for (const [path, content] of Object.entries(files)) {
+      const normalizedPath = this.normalizePath(path)
+      
+      // If path already exists, prefer the one with content
+      if (normalized[normalizedPath] !== undefined) {
+        // Keep existing if it has content and new one doesn't
+        if (normalized[normalizedPath] && !content) {
+          continue
+        }
+      }
+      
+      normalized[normalizedPath] = content
+    }
+    
+    return normalized
   }
   
   /**

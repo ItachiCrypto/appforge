@@ -323,9 +323,10 @@ export async function POST(req: NextRequest) {
           // Parse code from text OR fetch from DB if tools were used
           let codeOutput = parseCodeBlocks(fullContent)
           
-          // FIX BUG #3: ALWAYS fetch files from DB when tools are enabled
+          // FIX BUG #6: ALWAYS fetch files from DB before saving the message
           // Tools may have written files directly to DB, regardless of what parseCodeBlocks found
-          if (toolsEnabled && appId) {
+          // This ensures we never save with null codeOutput when files exist
+          if (appId) {
             const updatedApp = await prisma.app.findUnique({
               where: { id: appId },
               select: { files: true },
@@ -339,7 +340,10 @@ export async function POST(req: NextRequest) {
               ) || Object.keys(dbFiles).length !== Object.keys(originalFiles).length
               
               if (hasChanges) {
-                // DB files take priority over parseCodeBlocks when tools are used
+                // DB files take priority over parseCodeBlocks when files changed
+                codeOutput = { files: dbFiles }
+              } else if (!codeOutput && Object.keys(dbFiles).length > 0) {
+                // If no codeOutput from parsing but we have files in DB, use them
                 codeOutput = { files: dbFiles }
               }
             }
@@ -693,23 +697,39 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
       }
 
       // Handle tool calls
+      // FIX BUG #5: Accumulate tool_call.id when it arrives (may come in later chunks)
       if (delta?.tool_calls) {
         for (const tcDelta of delta.tool_calls) {
-          if (tcDelta.index !== currentToolCallIndex) {
-            currentToolCallIndex = tcDelta.index
-            toolCalls[currentToolCallIndex] = {
-              id: tcDelta.id || '',
+          const tcIndex = tcDelta.index
+          
+          // Initialize tool call entry if not exists
+          if (!toolCalls[tcIndex]) {
+            toolCalls[tcIndex] = {
+              id: '',
               type: 'function',
               function: {
-                name: tcDelta.function?.name || '',
+                name: '',
                 arguments: '',
               },
             }
           }
           
-          if (tcDelta.function?.arguments) {
-            toolCalls[currentToolCallIndex].function.arguments += tcDelta.function.arguments
+          // Accumulate ID when it arrives (may be in first chunk or later)
+          if (tcDelta.id) {
+            toolCalls[tcIndex].id = tcDelta.id
           }
+          
+          // Accumulate function name when it arrives
+          if (tcDelta.function?.name) {
+            toolCalls[tcIndex].function.name = tcDelta.function.name
+          }
+          
+          // Accumulate function arguments
+          if (tcDelta.function?.arguments) {
+            toolCalls[tcIndex].function.arguments += tcDelta.function.arguments
+          }
+          
+          currentToolCallIndex = tcIndex
         }
       }
 

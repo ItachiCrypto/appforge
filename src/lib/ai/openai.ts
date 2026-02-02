@@ -48,21 +48,53 @@ export function parseCodeBlocks(content: string): { files: Record<string, string
     }
   }
   
-  // Fallback: parse tsx/jsx/javascript code blocks
-  const codeBlockRegex = /```(?:tsx|jsx|typescript|javascript|ts|js)?\s*([\s\S]*?)```/g
+  // FIX BUG #4: Enhanced regex to capture more formats
+  // Matches: ```tsx, ```tsx filename="App.tsx", ```react, with optional leading whitespace
+  const codeBlockRegex = /^[ \t]*```(tsx|jsx|typescript|javascript|ts|js|react)?(?:\s+filename=["']([^"']+)["'])?\s*([\s\S]*?)^[ \t]*```/gm
   const files: Record<string, string> = {}
   let match
   let index = 0
   
   while ((match = codeBlockRegex.exec(content)) !== null) {
-    const code = match[1].trim()
+    const lang = match[1] || ''
+    const explicitFilename = match[2]
+    let code = match[3].trim()
+    
     // Skip empty or very short blocks
     if (code.length < 20) continue
     
-    // Check if it looks like a React component
-    if (code.includes('export') || code.includes('function') || code.includes('const')) {
-      // Use /App.tsx as default for the main component
-      const fileName = index === 0 ? '/App.tsx' : `/Component${index}.tsx`
+    // FIX BUG #4: Check for // filename: comment at the start of code
+    let fileName: string | null = null
+    
+    if (explicitFilename) {
+      // Explicit filename from ```tsx filename="App.tsx"
+      fileName = explicitFilename.startsWith('/') ? explicitFilename : '/' + explicitFilename
+    } else {
+      // Try to extract filename from comment
+      const filenameCommentMatch = code.match(/^\/\/\s*(?:filename|file|path):\s*([^\n]+)/i)
+      if (filenameCommentMatch) {
+        const extractedName = filenameCommentMatch[1].trim()
+        fileName = extractedName.startsWith('/') ? extractedName : '/' + extractedName
+        // Remove the comment from code
+        code = code.replace(/^\/\/\s*(?:filename|file|path):\s*[^\n]+\n?/i, '').trim()
+      }
+    }
+    
+    // Check if it looks like a React component or valid code
+    if (code.includes('export') || code.includes('function') || code.includes('const') || code.includes('import')) {
+      // Determine extension based on language if no explicit filename
+      if (!fileName) {
+        let ext = '.tsx'
+        if (lang === 'js' || lang === 'javascript') {
+          ext = '.js'
+        } else if (lang === 'ts' || lang === 'typescript') {
+          ext = '.ts'
+        } else if (lang === 'jsx') {
+          ext = '.jsx'
+        }
+        fileName = index === 0 ? `/App${ext}` : `/Component${index}${ext}`
+      }
+      
       files[fileName] = code
       index++
     }
