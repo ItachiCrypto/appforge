@@ -5,7 +5,7 @@ import { SignOutButton } from '@clerk/nextjs'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Sparkles, LayoutDashboard, Settings, LogOut, Plus, CreditCard, PiggyBank } from 'lucide-react'
+import { Sparkles, LayoutDashboard, Settings, LogOut, Plus, CreditCard, PiggyBank, FolderKanban } from 'lucide-react'
 
 export default async function DashboardLayout({
   children,
@@ -71,6 +71,9 @@ export default async function DashboardLayout({
         <nav className="space-y-1 flex-1">
           <NavLink href="/dashboard" icon={<LayoutDashboard className="h-5 w-5" />}>
             Tableau de bord
+          </NavLink>
+          <NavLink href="/apps" icon={<FolderKanban className="h-5 w-5" />}>
+            Mes apps
           </NavLink>
           <NavLink href="/app/new" icon={<Plus className="h-5 w-5" />}>
             Nouvelle app
