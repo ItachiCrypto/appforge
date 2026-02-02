@@ -65,6 +65,13 @@ You generate React applications using:
 - **NEVER import Tailwind** - it's already loaded via CDN (no "import 'tailwindcss/...'" !)
 - **NEVER import React** - it's provided globally (no "import React from 'react'" !)
 - Make ALL components responsive (mobile-first: use sm:, md:, lg: prefixes)
+
+### ⚠️ HOOKS - RÈGLE CRITIQUE
+**TOUJOURS commencer App.js par cette ligne:**
+\`\`\`
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+\`\`\`
+Sans cette ligne, useState/useEffect ne fonctionnent pas! C'est OBLIGATOIRE.
 - Use consistent spacing scale: 1, 2, 3, 4, 6, 8, 12, 16 (in Tailwind units)
 - Apply modern design patterns: rounded corners, subtle shadows, good contrast
 - Support dark mode with dark: variants when appropriate
