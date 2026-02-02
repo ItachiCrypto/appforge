@@ -1,21 +1,40 @@
 "use client"
 
+import { useState, useMemo, useCallback } from 'react'
 import { SandpackProvider, SandpackPreview, SandpackCodeEditor } from '@codesandbox/sandpack-react'
+import { ErrorBoundary, ErrorFallback } from '@/components/ui/error-boundary'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface DesktopPreviewProps {
   files: Record<string, string>
   showCode?: boolean
 }
 
-export function DesktopPreview({ files, showCode = false }: DesktopPreviewProps) {
-  if (showCode) {
-    return (
-      <SandpackProvider template="react" files={files} theme="auto">
-        <SandpackCodeEditor style={{ height: '100%' }} showLineNumbers showTabs />
-      </SandpackProvider>
-    )
+/**
+ * Sanitize and prepare files for Sandpack
+ */
+function prepareFiles(files: Record<string, string>): Record<string, string> {
+  const prepared: Record<string, string> = {}
+  
+  for (const [path, content] of Object.entries(files)) {
+    if (content === null || content === undefined) continue
+    
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    
+    // Fix broken Unicode escapes
+    let sanitized = typeof content === 'string' ? content : String(content || '')
+    sanitized = sanitized.replace(/\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g, (_, hex) => {
+      return hex.length === 0 ? '\\\\u' : `\\u${hex.padStart(4, '0')}`
+    })
+    
+    prepared[normalizedPath] = sanitized
   }
+  
+  return prepared
+}
 
+function DesktopFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-violet-200 dark:from-purple-900/30 dark:to-violet-900/30 p-8">
       {/* Desktop Window Frame */}
@@ -46,20 +65,7 @@ export function DesktopPreview({ files, showCode = false }: DesktopPreviewProps)
 
         {/* Window Content */}
         <div className="h-[calc(100%-2.5rem)]">
-          <SandpackProvider
-            template="react"
-            files={files}
-            theme="auto"
-            options={{
-              externalResources: ["https://cdn.tailwindcss.com"],
-            }}
-          >
-            <SandpackPreview 
-              style={{ height: '100%', width: '100%' }}
-              showNavigator={false}
-              showRefreshButton={false}
-            />
-          </SandpackProvider>
+          {children}
         </div>
       </div>
 
@@ -70,5 +76,67 @@ export function DesktopPreview({ files, showCode = false }: DesktopPreviewProps)
         </span>
       </div>
     </div>
+  )
+}
+
+function PreviewFallback({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+      <AlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
+      <h3 className="font-medium mb-1">Preview Error</h3>
+      <p className="text-sm text-muted-foreground mb-3">Could not render the desktop preview</p>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Retry
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export function DesktopPreview({ files, showCode = false }: DesktopPreviewProps) {
+  const [key, setKey] = useState(0)
+  
+  const preparedFiles = useMemo(() => prepareFiles(files), [files])
+  const handleRetry = useCallback(() => setKey(k => k + 1), [])
+  
+  if (showCode) {
+    return (
+      <ErrorBoundary fallback={<ErrorFallback onRetry={handleRetry} />}>
+        <SandpackProvider template="react" files={preparedFiles} theme="auto">
+          <SandpackCodeEditor style={{ height: '100%' }} showLineNumbers showTabs />
+        </SandpackProvider>
+      </ErrorBoundary>
+    )
+  }
+
+  return (
+    <ErrorBoundary 
+      key={key}
+      fallback={
+        <DesktopFrame>
+          <PreviewFallback onRetry={handleRetry} />
+        </DesktopFrame>
+      }
+      onReset={handleRetry}
+    >
+      <DesktopFrame>
+        <SandpackProvider
+          template="react"
+          files={preparedFiles}
+          theme="auto"
+          options={{
+            externalResources: ["https://cdn.tailwindcss.com"],
+          }}
+        >
+          <SandpackPreview 
+            style={{ height: '100%', width: '100%' }}
+            showNavigator={false}
+            showRefreshButton={false}
+          />
+        </SandpackProvider>
+      </DesktopFrame>
+    </ErrorBoundary>
   )
 }

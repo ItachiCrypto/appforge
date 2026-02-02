@@ -191,8 +191,21 @@ export default function AppEditorPage() {
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim()
+              if (!jsonStr) continue
+              
               try {
-                const data = JSON.parse(line.slice(6))
+                // Attempt to sanitize common JSON issues before parsing
+                let sanitizedJson = jsonStr
+                
+                // Handle truncated unicode escapes that can crash JSON.parse
+                // This regex finds \u followed by less than 4 hex chars
+                sanitizedJson = sanitizedJson.replace(
+                  /\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g,
+                  (_, hex) => hex.length === 0 ? '\\\\u' : `\\u${hex.padStart(4, '0')}`
+                )
+                
+                const data = JSON.parse(sanitizedJson)
                 
                 if (data.type === 'chunk') {
                   fullContent += data.content
@@ -212,8 +225,13 @@ export default function AppEditorPage() {
                       : m
                   ))
                 }
-              } catch {
-                // Ignore parse errors for incomplete chunks
+              } catch (parseError) {
+                // Log but don't crash - incomplete chunks are normal during streaming
+                if (jsonStr.length > 10) {
+                  console.debug('SSE parse skip (may be incomplete chunk):', 
+                    parseError instanceof Error ? parseError.message : 'Unknown error'
+                  )
+                }
               }
             }
           }

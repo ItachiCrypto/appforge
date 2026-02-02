@@ -1,7 +1,11 @@
 "use client"
 
+import { useState, useMemo, useCallback } from 'react'
 import { SandpackProvider, SandpackPreview, SandpackCodeEditor } from '@codesandbox/sandpack-react'
 import { cn } from '@/lib/utils'
+import { ErrorBoundary, ErrorFallback } from '@/components/ui/error-boundary'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface MobilePreviewProps {
   files: Record<string, string>
@@ -9,17 +13,36 @@ interface MobilePreviewProps {
   type: 'IOS' | 'ANDROID'
 }
 
-export function MobilePreview({ files, showCode = false, type }: MobilePreviewProps) {
-  const isIOS = type === 'IOS'
+/**
+ * Sanitize and prepare files for Sandpack
+ */
+function prepareFiles(files: Record<string, string>): Record<string, string> {
+  const prepared: Record<string, string> = {}
   
-  if (showCode) {
-    return (
-      <SandpackProvider template="react" files={files} theme="auto">
-        <SandpackCodeEditor style={{ height: '100%' }} showLineNumbers showTabs />
-      </SandpackProvider>
-    )
+  for (const [path, content] of Object.entries(files)) {
+    if (content === null || content === undefined) continue
+    
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    
+    // Fix broken Unicode escapes
+    let sanitized = typeof content === 'string' ? content : String(content || '')
+    sanitized = sanitized.replace(/\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g, (_, hex) => {
+      return hex.length === 0 ? '\\\\u' : `\\u${hex.padStart(4, '0')}`
+    })
+    
+    prepared[normalizedPath] = sanitized
   }
+  
+  return prepared
+}
 
+function MobileFrame({ 
+  children, 
+  isIOS 
+}: { 
+  children: React.ReactNode
+  isIOS: boolean 
+}) {
   return (
     <div className="h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-4">
       {/* Phone Frame */}
@@ -32,8 +55,8 @@ export function MobilePreview({ files, showCode = false, type }: MobilePreviewPr
         <div className={cn(
           "absolute top-0 left-1/2 -translate-x-1/2 z-10",
           isIOS 
-            ? "w-[120px] h-[30px] bg-black rounded-b-2xl" // Dynamic Island
-            : "w-full h-[24px] bg-black/80" // Android status
+            ? "w-[120px] h-[30px] bg-black rounded-b-2xl"
+            : "w-full h-[24px] bg-black/80"
         )}>
           {!isIOS && (
             <div className="flex justify-end items-center h-full px-4 text-white text-xs gap-2">
@@ -49,23 +72,10 @@ export function MobilePreview({ files, showCode = false, type }: MobilePreviewPr
           "w-full h-full bg-white overflow-hidden",
           isIOS ? "rounded-[2.5rem]" : "rounded-[1.5rem]"
         )}>
-          <SandpackProvider
-            template="react"
-            files={files}
-            theme="auto"
-            options={{
-              externalResources: ["https://cdn.tailwindcss.com"],
-            }}
-          >
-            <SandpackPreview 
-              style={{ height: '100%', width: '100%' }}
-              showNavigator={false}
-              showRefreshButton={false}
-            />
-          </SandpackProvider>
+          {children}
         </div>
 
-        {/* Home Indicator (iOS) / Navigation Bar (Android) */}
+        {/* Home Indicator / Navigation Bar */}
         {isIOS ? (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[140px] h-[5px] bg-white rounded-full" />
         ) : (
@@ -84,5 +94,68 @@ export function MobilePreview({ files, showCode = false, type }: MobilePreviewPr
         </span>
       </div>
     </div>
+  )
+}
+
+function PreviewFallback({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+      <AlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
+      <h3 className="font-medium mb-1">Preview Error</h3>
+      <p className="text-sm text-muted-foreground mb-3">Could not render the mobile preview</p>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Retry
+        </Button>
+      )}
+    </div>
+  )
+}
+
+export function MobilePreview({ files, showCode = false, type }: MobilePreviewProps) {
+  const isIOS = type === 'IOS'
+  const [key, setKey] = useState(0)
+  
+  const preparedFiles = useMemo(() => prepareFiles(files), [files])
+  const handleRetry = useCallback(() => setKey(k => k + 1), [])
+  
+  if (showCode) {
+    return (
+      <ErrorBoundary fallback={<ErrorFallback onRetry={handleRetry} />}>
+        <SandpackProvider template="react" files={preparedFiles} theme="auto">
+          <SandpackCodeEditor style={{ height: '100%' }} showLineNumbers showTabs />
+        </SandpackProvider>
+      </ErrorBoundary>
+    )
+  }
+
+  return (
+    <ErrorBoundary 
+      key={key}
+      fallback={
+        <MobileFrame isIOS={isIOS}>
+          <PreviewFallback onRetry={handleRetry} />
+        </MobileFrame>
+      }
+      onReset={handleRetry}
+    >
+      <MobileFrame isIOS={isIOS}>
+        <SandpackProvider
+          template="react"
+          files={preparedFiles}
+          theme="auto"
+          options={{
+            externalResources: ["https://cdn.tailwindcss.com"],
+          }}
+        >
+          <SandpackPreview 
+            style={{ height: '100%', width: '100%' }}
+            showNavigator={false}
+            showRefreshButton={false}
+          />
+        </SandpackProvider>
+      </MobileFrame>
+    </ErrorBoundary>
   )
 }

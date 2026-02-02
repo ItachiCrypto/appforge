@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { SandpackProvider, SandpackCodeEditor } from '@codesandbox/sandpack-react'
 import { Button } from '@/components/ui/button'
-import { Play, Copy, Check } from 'lucide-react'
+import { Play, Copy, Check, AlertTriangle, RefreshCw } from 'lucide-react'
+import { ErrorBoundary, ErrorFallback } from '@/components/ui/error-boundary'
 
 interface ApiPreviewProps {
   files: Record<string, string>
@@ -14,6 +15,29 @@ interface Endpoint {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   path: string
   description?: string
+}
+
+/**
+ * Sanitize and prepare files for Sandpack
+ */
+function prepareFiles(files: Record<string, string>): Record<string, string> {
+  const prepared: Record<string, string> = {}
+  
+  for (const [path, content] of Object.entries(files)) {
+    if (content === null || content === undefined) continue
+    
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    
+    // Fix broken Unicode escapes
+    let sanitized = typeof content === 'string' ? content : String(content || '')
+    sanitized = sanitized.replace(/\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g, (_, hex) => {
+      return hex.length === 0 ? '\\\\u' : `\\u${hex.padStart(4, '0')}`
+    })
+    
+    prepared[normalizedPath] = sanitized
+  }
+  
+  return prepared
 }
 
 // Parse endpoints from the code (simple regex-based extraction)
@@ -58,19 +82,41 @@ const METHOD_COLORS = {
   PATCH: 'bg-purple-500',
 }
 
+function PreviewFallback({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-gray-900">
+      <AlertTriangle className="w-10 h-10 text-amber-500 mb-3" />
+      <h3 className="font-medium text-lg mb-1 text-white">Preview Error</h3>
+      <p className="text-sm text-gray-400 mb-4">Could not render the API preview</p>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Retry
+        </Button>
+      )}
+    </div>
+  )
+}
+
 export function ApiPreview({ files, showCode = false }: ApiPreviewProps) {
   const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
   const [response, setResponse] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [key, setKey] = useState(0)
   
-  const code = Object.values(files).join('\n')
+  const preparedFiles = useMemo(() => prepareFiles(files), [files])
+  const handleRetry = useCallback(() => setKey(k => k + 1), [])
+  
+  const code = Object.values(preparedFiles).join('\n')
   const endpoints = parseEndpoints(code)
 
   if (showCode) {
     return (
-      <SandpackProvider template="react" files={files} theme="auto">
-        <SandpackCodeEditor style={{ height: '100%' }} showLineNumbers showTabs />
-      </SandpackProvider>
+      <ErrorBoundary key={key} fallback={<ErrorFallback onRetry={handleRetry} />}>
+        <SandpackProvider template="react" files={preparedFiles} theme="auto">
+          <SandpackCodeEditor style={{ height: '100%' }} showLineNumbers showTabs />
+        </SandpackProvider>
+      </ErrorBoundary>
     )
   }
 
@@ -94,85 +140,87 @@ export function ApiPreview({ files, showCode = false }: ApiPreviewProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 text-white">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          📡 API Documentation
-        </h2>
-        <p className="text-sm text-gray-400 mt-1">
-          {endpoints.length} endpoints available
-        </p>
-      </div>
+    <ErrorBoundary key={key} fallback={<PreviewFallback onRetry={handleRetry} />}>
+      <div className="h-full flex flex-col bg-gray-900 text-white">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-700">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            📡 API Documentation
+          </h2>
+          <p className="text-sm text-gray-400 mt-1">
+            {endpoints.length} endpoints available
+          </p>
+        </div>
 
-      {/* Endpoints List */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="space-y-3">
-          {endpoints.map((endpoint, i) => (
-            <div 
-              key={i}
-              className={`
-                bg-gray-800 rounded-lg p-4 border transition-colors cursor-pointer
-                ${selectedEndpoint === endpoint 
-                  ? 'border-blue-500' 
-                  : 'border-gray-700 hover:border-gray-600'}
-              `}
-              onClick={() => handleTest(endpoint)}
-            >
-              <div className="flex items-center gap-3">
-                <span className={`${METHOD_COLORS[endpoint.method]} text-xs font-bold px-2 py-1 rounded`}>
-                  {endpoint.method}
-                </span>
-                <code className="text-green-400 flex-1 font-mono text-sm">
-                  {endpoint.path}
-                </code>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="text-gray-400 hover:text-white"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleTest(endpoint)
-                  }}
-                >
-                  <Play className="w-4 h-4 mr-1" />
-                  Test
-                </Button>
+        {/* Endpoints List */}
+        <div className="flex-1 overflow-auto p-4">
+          <div className="space-y-3">
+            {endpoints.map((endpoint, i) => (
+              <div 
+                key={i}
+                className={`
+                  bg-gray-800 rounded-lg p-4 border transition-colors cursor-pointer
+                  ${selectedEndpoint === endpoint 
+                    ? 'border-blue-500' 
+                    : 'border-gray-700 hover:border-gray-600'}
+                `}
+                onClick={() => handleTest(endpoint)}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`${METHOD_COLORS[endpoint.method]} text-xs font-bold px-2 py-1 rounded`}>
+                    {endpoint.method}
+                  </span>
+                  <code className="text-green-400 flex-1 font-mono text-sm">
+                    {endpoint.path}
+                  </code>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-gray-400 hover:text-white"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleTest(endpoint)
+                    }}
+                  >
+                    <Play className="w-4 h-4 mr-1" />
+                    Test
+                  </Button>
+                </div>
+                {endpoint.description && (
+                  <p className="text-gray-500 text-sm mt-2">{endpoint.description}</p>
+                )}
               </div>
-              {endpoint.description && (
-                <p className="text-gray-500 text-sm mt-2">{endpoint.description}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Response Panel */}
-      {response && (
-        <div className="border-t border-gray-700 p-4 bg-gray-800/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-300">
-              Response {selectedEndpoint && `• ${selectedEndpoint.method} ${selectedEndpoint.path}`}
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-gray-400 hover:text-white"
-              onClick={() => handleCopy(response)}
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </Button>
+            ))}
           </div>
-          <pre className="bg-gray-900 rounded-lg p-3 text-sm font-mono text-green-400 overflow-auto max-h-40">
-            {response}
-          </pre>
         </div>
-      )}
 
-      {/* Footer */}
-      <div className="p-3 border-t border-gray-700 text-center text-xs text-gray-500">
-        🚀 Deploy to get real API endpoints
+        {/* Response Panel */}
+        {response && (
+          <div className="border-t border-gray-700 p-4 bg-gray-800/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-300">
+                Response {selectedEndpoint && `• ${selectedEndpoint.method} ${selectedEndpoint.path}`}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-gray-400 hover:text-white"
+                onClick={() => handleCopy(response)}
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+            <pre className="bg-gray-900 rounded-lg p-3 text-sm font-mono text-green-400 overflow-auto max-h-40">
+              {response}
+            </pre>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="p-3 border-t border-gray-700 text-center text-xs text-gray-500">
+          🚀 Deploy to get real API endpoints
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   )
 }
