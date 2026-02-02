@@ -126,21 +126,36 @@ export async function POST(req: NextRequest) {
       : process.env.OPENAI_API_KEY
 
     // Determine which key to use
+    // Priority: 1) BYOK if enabled and key exists, 2) Platform API with credits
     let apiKey: string | null = null
     let useBYOK = false
 
+    // Estimate credits needed for this request
+    const inputChars = messages.reduce((sum: number, m: {content: string}) => sum + m.content.length, 0)
+    const estimatedCredits = estimateCreditCost(modelKey, Math.ceil(inputChars / 4) + 500, 2000)
+
+    // Try BYOK first if enabled and key exists
     if (user.byokEnabled && userKey) {
       apiKey = userKey
       useBYOK = true
-    } else if (platformKey) {
-      // Check credits for platform usage
-      const inputChars = messages.reduce((sum: number, m: {content: string}) => sum + m.content.length, 0)
-      const estimatedCredits = estimateCreditCost(modelKey, Math.ceil(inputChars / 4) + 500, 2000)
-      
+    } 
+    // Fall back to platform API with user's plan credits
+    else if (platformKey) {
       const hasCredits = await hasEnoughCredits(user.id, estimatedCredits)
-      if (!hasCredits) {
+      if (hasCredits) {
+        apiKey = platformKey
+        useBYOK = false
+      }
+    }
+
+    // No valid option found
+    if (!apiKey) {
+      // Determine the best error message
+      const hasByokKey = user.byokEnabled && userKey
+      
+      if (!hasByokKey && user.creditBalance <= 0) {
         return new Response(JSON.stringify({
-          error: 'Insufficient credits. Add your own API key or purchase more credits.',
+          error: 'Plus de crédits disponibles. Ajoutez votre propre clé API ou achetez des crédits.',
           code: 'INSUFFICIENT_CREDITS',
           currentBalance: user.creditBalance,
         }), {
@@ -148,13 +163,20 @@ export async function POST(req: NextRequest) {
           headers: { 'Content-Type': 'application/json' },
         })
       }
-      apiKey = platformKey
-      useBYOK = false
-    }
+      
+      if (!hasByokKey && !platformKey) {
+        return new Response(JSON.stringify({
+          error: 'Service temporarily unavailable. Please add your own API key.',
+          code: 'NO_PLATFORM_KEY',
+        }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
 
-    if (!apiKey) {
       return new Response(JSON.stringify({
-        error: 'No API key available. Please add your API key in Settings.',
+        error: 'No API key available. Please add your API key in Settings or ensure you have credits.',
+        code: 'NO_API_KEY',
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
