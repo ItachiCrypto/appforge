@@ -1,7 +1,15 @@
+/**
+ * Deploy API Route
+ * 
+ * Deploys user apps to Cloudflare Pages (free tier).
+ * Falls back to simulated deployment if Cloudflare is not configured.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs'
 import { prisma } from '@/lib/prisma'
 import { PLANS } from '@/lib/constants'
+import { deployToCloudflare } from '@/lib/deploy/cloudflare'
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +31,7 @@ export async function POST(req: NextRequest) {
     const plan = PLANS[user.plan as keyof typeof PLANS]
     if (!plan.canDeploy) {
       return NextResponse.json(
-        { error: 'Upgrade to Starter or higher to deploy apps' },
+        { error: 'Upgrade to PRO or higher to deploy apps' },
         { status: 403 }
       )
     }
@@ -54,49 +62,69 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'App not found' }, { status: 404 })
     }
 
-    // For MVP, we'll simulate deployment
-    // In production, this would call the Vercel API
-    const vercelToken = process.env.VERCEL_TOKEN
+    // Get app files
+    const files = app.files as Record<string, string>
     
-    if (!vercelToken) {
-      // Simulate deployment for demo
-      const simulatedUrl = `https://${app.name.toLowerCase().replace(/\s+/g, '-')}-${app.id.slice(0, 8)}.vercel.app`
+    if (!files || Object.keys(files).length === 0) {
+      return NextResponse.json({ error: 'App has no files to deploy' }, { status: 400 })
+    }
+
+    // Check if Cloudflare is configured
+    const hasCloudflare = process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN
+
+    if (hasCloudflare) {
+      // Deploy to Cloudflare Pages
+      const result = await deployToCloudflare(app.id, app.name, files)
       
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error || 'Deployment failed' },
+          { status: 500 }
+        )
+      }
+
+      // Update app with deployment info
       await prisma.app.update({
         where: { id: appId },
         data: {
           status: 'DEPLOYED',
-          vercelUrl: simulatedUrl,
+          vercelUrl: result.url, // Reusing vercelUrl field for any deployment URL
           deployedAt: new Date(),
         },
       })
 
       return NextResponse.json({
         success: true,
-        url: simulatedUrl,
-        message: 'Deployment simulated (configure VERCEL_TOKEN for real deployments)',
+        url: result.url,
+        deploymentId: result.deploymentId,
+        provider: 'cloudflare',
       })
     }
 
-    // Real Vercel deployment would go here
-    // For now, we'll just mark it as deployed
-    const deploymentUrl = `https://${app.name.toLowerCase().replace(/\s+/g, '-')}-${app.id.slice(0, 8)}.vercel.app`
-
+    // Fallback: Simulate deployment for demo/dev
+    const simulatedUrl = `https://appforge-${app.id.slice(0, 8)}.pages.dev`
+    
     await prisma.app.update({
       where: { id: appId },
       data: {
         status: 'DEPLOYED',
-        vercelUrl: deploymentUrl,
+        vercelUrl: simulatedUrl,
         deployedAt: new Date(),
       },
     })
 
     return NextResponse.json({
       success: true,
-      url: deploymentUrl,
+      url: simulatedUrl,
+      provider: 'simulated',
+      message: 'Deployment simulated. Configure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN for real deployments.',
     })
+
   } catch (error) {
     console.error('Deploy error:', error)
-    return NextResponse.json({ error: 'Failed to deploy' }, { status: 500 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to deploy' },
+      { status: 500 }
+    )
   }
 }
