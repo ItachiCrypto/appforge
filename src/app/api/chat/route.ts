@@ -68,8 +68,10 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  console.log('[Chat API] Request received')
   try {
     const { userId } = auth()
+    console.log('[Chat API] User ID:', userId ? 'present' : 'missing')
 
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -197,6 +199,15 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       })
     }
+
+    console.log('[Chat API] Key selection:', {
+      modelKey,
+      hasAnthropicKey,
+      hasOpenAIKey,
+      apiKeyPresent: !!apiKey,
+      useBYOK,
+      isAnthropicModel,
+    })
 
     // Get app/project context
     let app = null
@@ -406,6 +417,11 @@ export async function POST(req: NextRequest) {
           controller.close()
         } catch (error) {
           console.error('Stream error:', error)
+          console.error('Stream error details:', {
+            name: error instanceof Error ? error.name : 'unknown',
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+          })
           const errorMsg = error instanceof Error ? error.message : 'Unknown error'
           send('error', { error: errorMsg })
           controller.close()
@@ -679,8 +695,10 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
     onContent 
   } = options
 
+  console.log('[OpenAI] Initializing with key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO KEY')
   const openai = new OpenAI({ apiKey })
   const tools = enableTools ? toOpenAITools() : undefined
+  console.log('[OpenAI] Tools enabled:', enableTools, 'Model:', apiModelName)
 
   // Build conversation
   let conversationMessages: OpenAI.ChatCompletionMessageParam[] = chatMessages.map(m => ({
