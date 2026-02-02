@@ -241,7 +241,7 @@ export function getAppTypeLabel(type: AppType): string {
   return labels[type] || 'App'
 }
 
-// Sandpack dark theme
+// Sandpack dark theme (Catppuccin Mocha)
 const darkTheme = {
   colors: {
     surface1: '#1e1e2e',
@@ -257,7 +257,7 @@ const darkTheme = {
   },
   syntax: {
     plain: '#cdd6f4',
-    comment: { color: '#6c7086', fontStyle: 'italic' },
+    comment: { color: '#6c7086', fontStyle: 'italic' as const },
     keyword: '#cba6f7',
     tag: '#f38ba8',
     punctuation: '#9399b2',
