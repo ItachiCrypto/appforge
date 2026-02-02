@@ -114,8 +114,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Determine model (default to Claude Sonnet if no preference)
-    let modelKey = requestedModel || user.preferredModel?.modelId || 'claude-sonnet-4'
+    // Determine model (default to GPT-4o until Anthropic key is fixed)
+    let modelKey = requestedModel || user.preferredModel?.modelId || 'gpt-4o'
     
     // Check available platform keys
     const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
