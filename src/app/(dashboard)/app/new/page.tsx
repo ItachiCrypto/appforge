@@ -80,10 +80,16 @@ export default function NewAppPage() {
   }
 
   // Création de l'app
+  const [error, setError] = useState<string | null>(null)
+  
   const handleCreate = async () => {
-    if (!selectedSaasForTemplate || !templateData) return
+    if (!selectedSaasForTemplate || !templateData) {
+      setError("Erreur: template non trouvé. Retourne à l'étape 2.")
+      return
+    }
 
     setIsLoading(true)
+    setError(null)
     
     try {
       const res = await fetch('/api/apps', {
@@ -104,14 +110,18 @@ export default function NewAppPage() {
         }),
       })
       
-      if (!res.ok) throw new Error('Failed to create app')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Erreur ${res.status}`)
+      }
       
       const app = await res.json()
       
       // Rediriger vers l'éditeur avec le prompt du template
       router.push(`/app/${app.id}?prompt=${encodeURIComponent(templateData.prompt)}`)
     } catch (err) {
-      console.error(err)
+      console.error('Create app error:', err)
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création')
       setIsLoading(false)
     }
   }
@@ -440,6 +450,13 @@ export default function NewAppPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Message d'erreur */}
+            {error && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                {error}
+              </div>
+            )}
 
             {/* Navigation et CTA */}
             <div className="flex justify-between">
