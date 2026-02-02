@@ -297,13 +297,13 @@ function ErrorOverlay({ onReset }: { onReset?: () => void }) {
 // Wrapper component that includes error handling
 function PreviewWithErrorHandling({ onReset }: { onReset?: () => void }) {
   return (
-    <div className="relative h-full">
+    <div className="relative h-full w-full" style={{ minHeight: '100%' }}>
       <ErrorOverlay onReset={onReset} />
       <SandpackPreview 
         showNavigator={false}
         showRefreshButton={false}
         showOpenInCodeSandbox={false}
-        style={{ height: '100%', minHeight: '400px' }}
+        style={{ height: '100%', width: '100%' }}
       />
     </div>
   )
@@ -349,22 +349,24 @@ export function Preview({ files, appType, showCode = false, className, onResetFi
     }
 
     return (
-      <SandpackProvider
-        template="react"
-        files={mergedFiles}
-        theme="dark"
-        customSetup={sandpackSetup}
-        options={{
-          externalResources: ['https://cdn.tailwindcss.com'],
-        }}
-      >
-        <PreviewWithErrorHandling onReset={onResetFiles} />
-      </SandpackProvider>
+      <div className="h-full w-full [&_.sp-wrapper]:h-full [&_.sp-layout]:h-full [&_.sp-preview-container]:h-full [&_.sp-preview-iframe]:h-full">
+        <SandpackProvider
+          template="react"
+          files={mergedFiles}
+          theme="dark"
+          customSetup={sandpackSetup}
+          options={{
+            externalResources: ['https://cdn.tailwindcss.com'],
+          }}
+        >
+          <PreviewWithErrorHandling onReset={onResetFiles} />
+        </SandpackProvider>
+      </div>
     )
   }
 
   return (
-    <div className={cn("h-full min-h-[400px] rounded-lg overflow-hidden", className)}>
+    <div className={cn("h-full w-full rounded-lg overflow-hidden", className)}>
       {renderPreview()}
     </div>
   )

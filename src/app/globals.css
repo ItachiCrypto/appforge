@@ -107,3 +107,14 @@
 .glow-hover:hover {
   box-shadow: 0 0 30px hsl(var(--primary) / 0.4);
 }
+
+/* Sandpack full height fix */
+.sp-wrapper,
+.sp-layout,
+.sp-stack,
+.sp-preview-container,
+.sp-preview-iframe,
+.sp-preview {
+  height: 100% !important;
+  min-height: 100% !important;
+}
