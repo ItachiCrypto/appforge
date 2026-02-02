@@ -4,10 +4,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { 
   Loader2, 
   Rocket, 
   ExternalLink,
+  PiggyBank,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType } from '@/components/preview'
@@ -19,34 +21,43 @@ import {
   useEditorStore,
   type Message 
 } from '@/components/editor'
+import { formatCurrency, SAAS_APPS } from '@/lib/saas-data'
 
 // Helper to provide actionable guidance for common errors
 function getErrorActionHint(errorMessage: string): string | null {
   const lowerError = errorMessage.toLowerCase()
   
   if (lowerError.includes('api key') || lowerError.includes('apikey')) {
-    return '💡 **Action:** Go to Settings → API Keys and add your OpenAI or Anthropic API key.'
+    return '💡 **Action:** Va dans Paramètres → Clés API et ajoute ta clé OpenAI ou Anthropic.'
   }
   if (lowerError.includes('unauthorized') || lowerError.includes('401')) {
-    return '💡 **Action:** Please sign in again to continue.'
+    return '💡 **Action:** Reconnecte-toi pour continuer.'
   }
   if (lowerError.includes('rate limit') || lowerError.includes('429')) {
-    return '💡 **Action:** Too many requests. Please wait a moment and try again.'
+    return '💡 **Action:** Trop de requêtes. Attends un moment et réessaie.'
   }
   if (lowerError.includes('quota') || lowerError.includes('billing') || lowerError.includes('credit balance')) {
     if (lowerError.includes('anthropic')) {
-      return '💡 **Action:** Your Anthropic account is out of credits. Add credits at console.anthropic.com/settings/billing or switch to OpenAI in Settings.'
+      return '💡 **Action:** Ton compte Anthropic n\'a plus de crédits. Ajoute des crédits sur console.anthropic.com/settings/billing ou passe à OpenAI dans les Paramètres.'
     }
-    return '💡 **Action:** Your API account may have run out of credits. Check your billing (Anthropic: console.anthropic.com | OpenAI: platform.openai.com).'
+    return '💡 **Action:** Ton compte API n\'a peut-être plus de crédits. Vérifie ta facturation (Anthropic: console.anthropic.com | OpenAI: platform.openai.com).'
   }
   if (lowerError.includes('invalid') && lowerError.includes('key')) {
-    return '💡 **Action:** Your API key appears to be invalid. Please check it in Settings → API Keys.'
+    return '💡 **Action:** Ta clé API semble invalide. Vérifie-la dans Paramètres → Clés API.'
   }
   if (lowerError.includes('timeout') || lowerError.includes('timed out')) {
-    return '💡 **Action:** The request took too long. Try a shorter prompt or try again.'
+    return '💡 **Action:** La requête a pris trop de temps. Essaie un prompt plus court ou réessaie.'
   }
   
   return null
+}
+
+// Fonction pour obtenir l'icône d'un SaaS
+function getSaasIcon(saasName: string): string {
+  const saas = SAAS_APPS.find(s => 
+    s.name.toLowerCase() === saasName.toLowerCase()
+  )
+  return saas?.icon || '📦'
 }
 
 export default function AppEditorPage() {
@@ -64,9 +75,16 @@ export default function AppEditorPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [appType, setAppType] = useState<AppType>('WEB')
   const [files, setFiles] = useState<Record<string, string>>(DEFAULT_FILES.WEB)
-  const [appName, setAppName] = useState('My App')
+  const [appName, setAppName] = useState('Mon App')
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [isDeploying, setIsDeploying] = useState(false)
+  
+  // Métadonnées pour les économies
+  const [appMetadata, setAppMetadata] = useState<{
+    replacedSaas?: string
+    replacedSaasName?: string
+    monthlySavings?: number
+  } | null>(null)
   
   const hasInitialized = useRef(false)
 
@@ -82,6 +100,11 @@ export default function AppEditorPage() {
           // Set app type (WEB, IOS, ANDROID, DESKTOP, API)
           const type = (app.type as AppType) || 'WEB'
           setAppType(type)
+          
+          // Charger les métadonnées (économies)
+          if (app.metadata) {
+            setAppMetadata(app.metadata)
+          }
           
           // Use app files or default for the type
           if (app.files && Object.keys(app.files).length > 0) {
@@ -164,7 +187,7 @@ export default function AppEditorPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        const errorMessage = data.error || 'Failed to send message'
+        const errorMessage = data.error || 'Échec de l\'envoi du message'
         const actionHint = getErrorActionHint(errorMessage)
         
         setMessages(prev => prev.map(m => 
@@ -256,13 +279,13 @@ export default function AppEditorPage() {
       }
     } catch (error) {
       console.error('Chat error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
       
-      let displayMessage = `⚠️ Connection error: ${errorMessage}`
+      let displayMessage = `⚠️ Erreur de connexion: ${errorMessage}`
       if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
-        displayMessage = '⚠️ Request timed out. Please try again.'
+        displayMessage = '⚠️ La requête a expiré. Réessaie.'
       } else if (errorMessage.includes('Failed to fetch')) {
-        displayMessage = '⚠️ Network error. Check your connection.'
+        displayMessage = '⚠️ Erreur réseau. Vérifie ta connexion.'
       }
       
       setMessages(prev => prev.map(m => 
@@ -323,6 +346,9 @@ export default function AppEditorPage() {
     }).catch(err => console.error('Failed to reset files:', err))
   }, [appId, appType])
 
+  // Calcul des économies
+  const yearlySavings = appMetadata?.monthlySavings ? appMetadata.monthlySavings * 12 : 0
+
   // Preview component (used in both modes)
   const previewComponent = (
     <Preview 
@@ -356,6 +382,21 @@ export default function AppEditorPage() {
             <h1 className="text-xl font-semibold">{appName}</h1>
             <p className="text-xs text-muted-foreground">{getAppTypeLabel(appType)}</p>
           </div>
+          
+          {/* Badge économies */}
+          {appMetadata?.replacedSaasName && yearlySavings > 0 && (
+            <Badge 
+              variant="outline" 
+              className="ml-2 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5"
+            >
+              <span>{getSaasIcon(appMetadata.replacedSaasName)}</span>
+              <span className="line-through text-muted-foreground text-xs">
+                {appMetadata.replacedSaasName}
+              </span>
+              <PiggyBank className="w-3 h-3" />
+              <span className="font-semibold">+{formatCurrency(yearlySavings)}/an</span>
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {/* Mode Toggle */}
@@ -365,7 +406,7 @@ export default function AppEditorPage() {
             <Button size="sm" variant="outline" asChild>
               <a href={deployUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-4 h-4 mr-2" />
-                View Live
+                Voir en ligne
               </a>
             </Button>
           ) : null}
@@ -376,7 +417,7 @@ export default function AppEditorPage() {
             ) : (
               <Rocket className="w-4 h-4 mr-2" />
             )}
-            Deploy
+            Déployer
           </Button>
         </div>
       </div>

@@ -60,14 +60,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse and validate request body
-    let body: { name?: string; description?: string; type?: string }
+    let body: { name?: string; description?: string; type?: string; metadata?: object }
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const { name, description, type } = body
+    const { name, description, type, metadata } = body
 
     // Validate inputs
     if (name !== undefined && (typeof name !== 'string' || name.length > 100)) {
@@ -75,6 +75,9 @@ export async function POST(req: NextRequest) {
     }
     if (description !== undefined && (typeof description !== 'string' || description.length > 500)) {
       return NextResponse.json({ error: 'Description must be a string with max 500 characters' }, { status: 400 })
+    }
+    if (metadata !== undefined && (typeof metadata !== 'object' || metadata === null)) {
+      return NextResponse.json({ error: 'Metadata must be an object' }, { status: 400 })
     }
     
     // Validate app type
@@ -99,6 +102,7 @@ export async function POST(req: NextRequest) {
         description,
         type: appType as AppType,
         files: defaultFiles,
+        metadata: metadata || undefined,
         userId: user.id,
         conversationId: conversation.id,
       },

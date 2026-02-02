@@ -264,6 +264,8 @@ export const TEMPLATES_BY_TYPE: Record<AppTypeId, Array<{
   name: string
   description: string
   prompt: string
+  isClone?: boolean
+  savings?: number
 }>> = {
   WEB: [
     // === FLAGSHIP CLONES - Économisez des centaines d'euros/an! ===

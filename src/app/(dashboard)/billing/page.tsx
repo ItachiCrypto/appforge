@@ -8,6 +8,20 @@ import { PLANS } from '@/lib/constants'
 
 const PLAN_ORDER = ['FREE', 'STARTER', 'PRO', 'TEAM'] as const
 
+const PLAN_NAMES: Record<string, string> = {
+  FREE: 'Gratuit',
+  STARTER: 'Starter',
+  PRO: 'Pro',
+  TEAM: 'Team',
+}
+
+const PLAN_FEATURES: Record<string, string[]> = {
+  FREE: ['3 apps', 'Aperçu uniquement', 'Support communautaire'],
+  STARTER: ['10 apps', 'Déploiement sur Vercel', 'Domaines personnalisés', 'Support email'],
+  PRO: ['Apps illimitées', 'Déploiement sur Vercel', 'Domaines personnalisés', 'Analytics', 'Support prioritaire'],
+  TEAM: ['Tout de Pro', '5 membres d\'équipe', 'Collaboration', 'Projets partagés', 'Dashboard admin'],
+}
+
 export default function BillingPage() {
   const [currentPlan, setCurrentPlan] = useState<string>('FREE')
   const [isLoading, setIsLoading] = useState<string | null>(null)
@@ -18,7 +32,7 @@ export default function BillingPage() {
   useEffect(() => {
     fetch('/api/user')
       .then(res => {
-        if (!res.ok) throw new Error('Failed to load user data')
+        if (!res.ok) throw new Error('Échec du chargement des données')
         return res.json()
       })
       .then(data => {
@@ -27,7 +41,7 @@ export default function BillingPage() {
       })
       .catch(err => {
         console.error(err)
-        setError('Failed to load billing information. Please refresh.')
+        setError('Impossible de charger les informations de facturation. Actualise la page.')
       })
       .finally(() => setPageLoading(false))
   }, [])
@@ -77,7 +91,7 @@ export default function BillingPage() {
       <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading billing information...</p>
+          <p className="text-muted-foreground">Chargement des informations de facturation...</p>
         </div>
       </div>
     )
@@ -88,7 +102,7 @@ export default function BillingPage() {
       <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
           <p className="text-destructive mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
+          <Button onClick={() => window.location.reload()}>Réessayer</Button>
         </div>
       </div>
     )
@@ -97,22 +111,21 @@ export default function BillingPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 p-8">
       <div>
-        <h1 className="text-3xl font-bold">Billing</h1>
+        <h1 className="text-3xl font-bold">Facturation</h1>
         <p className="text-muted-foreground mt-1">
-          Manage your subscription and billing
+          Gère ton abonnement et ta facturation
         </p>
       </div>
 
       {/* Current Plan */}
       <Card>
         <CardHeader>
-          <CardTitle>Current Plan</CardTitle>
+          <CardTitle>Plan actuel</CardTitle>
           <CardDescription>
-            You are currently on the{' '}
+            Tu es actuellement sur le plan{' '}
             <span className="font-semibold text-foreground">
-              {PLANS[currentPlan as keyof typeof PLANS]?.name || 'Free'}
-            </span>{' '}
-            plan
+              {PLAN_NAMES[currentPlan] || 'Gratuit'}
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,7 +136,7 @@ export default function BillingPage() {
               ) : (
                 <ExternalLink className="w-4 h-4 mr-2" />
               )}
-              Manage Billing
+              Gérer la facturation
             </Button>
           )}
         </CardContent>
@@ -138,9 +151,9 @@ export default function BillingPage() {
                 <Sparkles className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold">BYOK Discount Active!</p>
+                <p className="font-semibold">Réduction BYOK Active !</p>
                 <p className="text-sm text-muted-foreground">
-                  You get 50% off because you're using your own API keys.
+                  Tu as 50% de réduction parce que tu utilises tes propres clés API.
                 </p>
               </div>
             </div>
@@ -164,30 +177,30 @@ export default function BillingPage() {
             >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  {plan.name}
+                  {PLAN_NAMES[planKey]}
                   {isCurrent && (
                     <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full">
-                      Current
+                      Actuel
                     </span>
                   )}
                 </CardTitle>
                 <div>
                   <span className="text-3xl font-bold">
-                    ${price}
+                    {price}€
                   </span>
                   {planKey !== 'FREE' && (
-                    <span className="text-muted-foreground">/mo</span>
+                    <span className="text-muted-foreground">/mois</span>
                   )}
                   {hasByok && planKey !== 'FREE' && (
                     <span className="text-xs text-green-600 ml-2">
-                      (50% off)
+                      (50% de réduction)
                     </span>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 mb-6">
-                  {plan.features.map((feature) => (
+                  {PLAN_FEATURES[planKey].map((feature) => (
                     <li key={feature} className="text-sm flex items-start gap-2">
                       <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                       {feature}
@@ -204,11 +217,11 @@ export default function BillingPage() {
                   {isLoading === planKey ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : isCurrent ? (
-                    'Current Plan'
+                    'Plan actuel'
                   ) : planKey === 'FREE' ? (
-                    'Free'
+                    'Gratuit'
                   ) : (
-                    'Upgrade'
+                    'Passer au supérieur'
                   )}
                 </Button>
               </CardContent>
@@ -220,25 +233,25 @@ export default function BillingPage() {
       {/* FAQ */}
       <Card>
         <CardHeader>
-          <CardTitle>Frequently Asked Questions</CardTitle>
+          <CardTitle>Questions fréquentes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <h4 className="font-medium">Can I cancel anytime?</h4>
+            <h4 className="font-medium">Je peux annuler à tout moment ?</h4>
             <p className="text-sm text-muted-foreground">
-              Yes, you can cancel your subscription at any time. You'll continue to have access until the end of your billing period.
+              Oui, tu peux annuler ton abonnement à tout moment. Tu garderas l'accès jusqu'à la fin de ta période de facturation.
             </p>
           </div>
           <div>
-            <h4 className="font-medium">What is BYOK?</h4>
+            <h4 className="font-medium">C'est quoi BYOK ?</h4>
             <p className="text-sm text-muted-foreground">
-              BYOK (Bring Your Own Key) means you can use your own OpenAI or Anthropic API keys. This gives you 50% off your subscription and full control over your AI costs.
+              BYOK (Bring Your Own Key) signifie que tu peux utiliser tes propres clés API OpenAI ou Anthropic. Ça te donne 50% de réduction sur ton abonnement et un contrôle total sur tes coûts IA.
             </p>
           </div>
           <div>
-            <h4 className="font-medium">What happens if I exceed my app limit?</h4>
+            <h4 className="font-medium">Que se passe-t-il si je dépasse ma limite d'apps ?</h4>
             <p className="text-sm text-muted-foreground">
-              You'll need to upgrade to a higher plan or archive some existing apps to create new ones.
+              Tu devras passer au plan supérieur ou archiver certaines apps existantes pour en créer de nouvelles.
             </p>
           </div>
         </CardContent>

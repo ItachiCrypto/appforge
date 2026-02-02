@@ -5,7 +5,7 @@ import { SignOutButton } from '@clerk/nextjs'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Sparkles, LayoutDashboard, Settings, LogOut, Plus, CreditCard } from 'lucide-react'
+import { Sparkles, LayoutDashboard, Settings, LogOut, Plus, CreditCard, PiggyBank } from 'lucide-react'
 
 export default async function DashboardLayout({
   children,
@@ -22,6 +22,8 @@ export default async function DashboardLayout({
   
   // Get or create user in our database with error handling
   let user = null
+  let totalSavings = 0
+  
   try {
     user = await prisma.user.findUnique({
       where: { clerkId: userId },
@@ -36,6 +38,19 @@ export default async function DashboardLayout({
           imageUrl: clerkUser.imageUrl,
         },
       })
+    }
+
+    // Calculer les économies totales
+    if (user) {
+      const apps = await prisma.app.findMany({
+        where: { userId: user.id },
+        select: { metadata: true }
+      })
+      
+      totalSavings = apps.reduce((sum, app) => {
+        const metadata = app.metadata as { monthlySavings?: number } | null
+        return sum + (metadata?.monthlySavings || 0) * 12
+      }, 0)
     }
   } catch (error) {
     console.error('Database error in layout:', error)
@@ -55,18 +70,37 @@ export default async function DashboardLayout({
         
         <nav className="space-y-1 flex-1">
           <NavLink href="/dashboard" icon={<LayoutDashboard className="h-5 w-5" />}>
-            Dashboard
+            Tableau de bord
           </NavLink>
           <NavLink href="/app/new" icon={<Plus className="h-5 w-5" />}>
-            New App
+            Nouvelle app
           </NavLink>
           <NavLink href="/billing" icon={<CreditCard className="h-5 w-5" />}>
-            Billing
+            Facturation
           </NavLink>
           <NavLink href="/settings" icon={<Settings className="h-5 w-5" />}>
-            Settings
+            Paramètres
           </NavLink>
         </nav>
+        
+        {/* Économies Badge */}
+        {totalSavings > 0 && (
+          <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex items-center gap-2 text-emerald-600">
+              <PiggyBank className="h-5 w-5" />
+              <div>
+                <div className="font-semibold">
+                  {new Intl.NumberFormat('fr-FR', {
+                    style: 'currency',
+                    currency: 'EUR',
+                    minimumFractionDigits: 0,
+                  }).format(totalSavings)}/an
+                </div>
+                <div className="text-xs text-emerald-600/70">économisés</div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Plan Badge */}
         <div className="mb-4 p-3 rounded-lg bg-muted">
@@ -76,11 +110,11 @@ export default async function DashboardLayout({
           </div>
           {user?.openaiKey && (
             <div className="mt-2 text-xs text-green-500 flex items-center gap-1">
-              ✓ BYOK Active
+              ✓ BYOK Actif
             </div>
           )}
           <Link href="/settings#billing" className="text-xs text-primary mt-2 inline-block hover:underline">
-            {user?.plan === 'FREE' ? 'Upgrade plan' : 'Manage billing'}
+            {user?.plan === 'FREE' ? 'Passer au plan supérieur' : 'Gérer la facturation'}
           </Link>
         </div>
         
@@ -95,7 +129,7 @@ export default async function DashboardLayout({
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
-                {clerkUser?.firstName || user?.name || 'User'}
+                {clerkUser?.firstName || user?.name || 'Utilisateur'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {clerkUser?.emailAddresses[0]?.emailAddress || user?.email}
@@ -105,7 +139,7 @@ export default async function DashboardLayout({
           <SignOutButton>
             <Button variant="ghost" size="sm" className="w-full mt-3 justify-start text-muted-foreground">
               <LogOut className="h-4 w-4 mr-2" />
-              Sign out
+              Déconnexion
             </Button>
           </SignOutButton>
         </div>

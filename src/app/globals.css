@@ -118,3 +118,50 @@
   height: 100% !important;
   min-height: 100% !important;
 }
+
+/* Landing page slider styles */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  cursor: pointer;
+  border: 3px solid #18181b;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  cursor: pointer;
+  border: 3px solid #18181b;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* Smooth scroll for landing page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Landing page dark scrollbar */
+.bg-zinc-950::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+.bg-zinc-950::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+
+.bg-zinc-950::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}

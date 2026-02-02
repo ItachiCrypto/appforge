@@ -27,14 +27,14 @@ interface ModelOption {
 
 const AI_MODELS: ModelOption[] = [
   // Anthropic
-  { value: 'claude-opus-4', label: 'Claude Opus 4', description: 'Most powerful', provider: 'anthropic' },
-  { value: 'claude-sonnet-4', label: 'Claude Sonnet 4', description: 'Best balance', provider: 'anthropic' },
-  { value: 'claude-haiku-3.5', label: 'Claude Haiku 3.5', description: 'Fast & cheap', provider: 'anthropic' },
+  { value: 'claude-opus-4', label: 'Claude Opus 4', description: 'Le plus puissant', provider: 'anthropic' },
+  { value: 'claude-sonnet-4', label: 'Claude Sonnet 4', description: 'Meilleur équilibre', provider: 'anthropic' },
+  { value: 'claude-haiku-3.5', label: 'Claude Haiku 3.5', description: 'Rapide et économique', provider: 'anthropic' },
   // OpenAI
-  { value: 'gpt-4o', label: 'GPT-4o', description: 'Fast, intelligent', provider: 'openai' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Affordable', provider: 'openai' },
-  { value: 'o1', label: 'o1', description: 'Advanced reasoning', provider: 'openai' },
-  { value: 'o1-mini', label: 'o1 Mini', description: 'Fast reasoning', provider: 'openai' },
+  { value: 'gpt-4o', label: 'GPT-4o', description: 'Rapide, intelligent', provider: 'openai' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Abordable', provider: 'openai' },
+  { value: 'o1', label: 'o1', description: 'Raisonnement avancé', provider: 'openai' },
+  { value: 'o1-mini', label: 'o1 Mini', description: 'Raisonnement rapide', provider: 'openai' },
 ]
 
 export default function SettingsPage() {
@@ -77,7 +77,7 @@ export default function SettingsPage() {
         setKeyStatus(data)
       }
     } catch (error) {
-      console.error('Failed to check key balances:', error)
+      console.error('Échec de la vérification des clés:', error)
     }
   }
   
@@ -107,7 +107,7 @@ export default function SettingsPage() {
           }
         }
       } catch (error) {
-        console.error('Failed to load user:', error)
+        console.error('Échec du chargement utilisateur:', error)
       } finally {
         setLoading(false)
       }
@@ -143,7 +143,7 @@ export default function SettingsPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to save keys:', error)
+      console.error('Échec de la sauvegarde des clés:', error)
     } finally {
       setSaving(false)
     }
@@ -165,21 +165,10 @@ export default function SettingsPage() {
         setTimeout(() => setModelSaved(false), 2000)
       }
     } catch (error) {
-      console.error('Failed to save model preference:', error)
+      console.error('Échec de la sauvegarde du modèle:', error)
     } finally {
       setSavingModel(false)
     }
-  }
-  
-  // Filter models based on available API keys
-  const getAvailableModels = () => {
-    if (!userData) return AI_MODELS
-    
-    return AI_MODELS.map(model => ({
-      ...model,
-      disabled: (model.provider === 'anthropic' && !userData.anthropicKey) ||
-                (model.provider === 'openai' && !userData.openaiKey),
-    }))
   }
   
   if (!isLoaded || loading) {
@@ -192,21 +181,21 @@ export default function SettingsPage() {
   
   return (
     <div className="p-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      <h1 className="text-3xl font-bold mb-8">Paramètres</h1>
       
       {/* Profile Section */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Profile
+            Profil
           </CardTitle>
-          <CardDescription>Your account information</CardDescription>
+          <CardDescription>Informations de ton compte</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Name</label>
+              <label className="text-sm font-medium mb-1.5 block">Nom</label>
               <Input value={clerkUser?.fullName || userData?.name || ''} disabled />
             </div>
             <div>
@@ -222,10 +211,10 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
-            API Keys (BYOK)
+            Clés API (BYOK)
           </CardTitle>
           <CardDescription>
-            Bring your own API keys and save 50% on your subscription! Your keys are encrypted and never logged.
+            Utilise tes propres clés API et économise 50% sur ton abonnement ! Tes clés sont chiffrées et jamais enregistrées.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -235,15 +224,15 @@ export default function SettingsPage() {
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="font-medium">Why use BYOK?</p>
+              <p className="font-medium">Pourquoi utiliser BYOK ?</p>
               <p className="text-sm text-muted-foreground">
-                Use your own OpenAI API key to get unlimited AI generations at your own cost. No credits needed!
+                Utilise ta propre clé OpenAI pour des générations IA illimitées à ton propre coût. Pas de crédits nécessaires !
               </p>
             </div>
           </div>
           
           <ApiKeyInput
-            label="OpenAI API Key"
+            label="Clé API OpenAI"
             placeholder="sk-..."
             value={keys.openai}
             onChange={(v) => setKeys({ ...keys, openai: v })}
@@ -254,7 +243,7 @@ export default function SettingsPage() {
           />
           
           <ApiKeyInput
-            label="Anthropic API Key"
+            label="Clé API Anthropic"
             placeholder="sk-ant-..."
             value={keys.anthropic}
             onChange={(v) => setKeys({ ...keys, anthropic: v })}
@@ -274,10 +263,10 @@ export default function SettingsPage() {
               ) : saved ? (
                 <Check className="h-4 w-4 mr-2" />
               ) : null}
-              {saved ? 'Saved!' : 'Save API Keys'}
+              {saved ? 'Enregistré !' : 'Enregistrer les clés API'}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Keys are encrypted with AES-256
+              Clés chiffrées en AES-256
             </p>
           </div>
         </CardContent>
@@ -288,10 +277,10 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" />
-            AI Model
+            Modèle IA
           </CardTitle>
           <CardDescription>
-            Choose which AI model to use for code generation. Models require the corresponding API key.
+            Choisis le modèle IA pour la génération de code. Les modèles nécessitent la clé API correspondante.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -305,7 +294,7 @@ export default function SettingsPage() {
                 <span className="font-medium">Anthropic (Claude)</span>
                 {!userData?.anthropicKey && (
                   <Badge variant="outline" className="text-xs text-muted-foreground">
-                    No API key
+                    Pas de clé API
                   </Badge>
                 )}
               </div>
@@ -331,7 +320,7 @@ export default function SettingsPage() {
                 <span className="font-medium">OpenAI (GPT)</span>
                 {!userData?.openaiKey && (
                   <Badge variant="outline" className="text-xs text-muted-foreground">
-                    No API key
+                    Pas de clé API
                   </Badge>
                 )}
               </div>
@@ -352,13 +341,13 @@ export default function SettingsPage() {
           {savingModel && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
+              Enregistrement...
             </div>
           )}
           {modelSaved && (
             <div className="flex items-center gap-2 text-sm text-green-500">
               <Check className="h-4 w-4" />
-              Model preference saved!
+              Préférence de modèle enregistrée !
             </div>
           )}
           
@@ -366,7 +355,7 @@ export default function SettingsPage() {
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
               <p className="text-sm text-yellow-600 dark:text-yellow-400">
                 <Zap className="h-4 w-4 inline mr-1" />
-                Add an API key above to unlock AI model selection.
+                Ajoute une clé API ci-dessus pour débloquer la sélection de modèle IA.
               </p>
             </div>
           )}
@@ -378,31 +367,31 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Coins className="h-5 w-5" />
-            Forge Credits
+            Crédits Forge
           </CardTitle>
           <CardDescription>
-            Credits are used when you don't have your own API key, or as fallback when your key runs out.
+            Les crédits sont utilisés quand tu n'as pas ta propre clé API, ou comme secours si ta clé est épuisée.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between p-6 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Available Credits</p>
+              <p className="text-sm text-muted-foreground mb-1">Crédits disponibles</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-bold">{Math.floor(userData?.creditBalance || 0)}</span>
-                <span className="text-muted-foreground">credits</span>
+                <span className="text-muted-foreground">crédits</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                ≈ €{((userData?.creditBalance || 0) / 100).toFixed(2)} value
+                ≈ {((userData?.creditBalance || 0) / 100).toFixed(2)}€ de valeur
               </p>
             </div>
             <div className="text-right">
               <Button variant="outline" className="mb-2">
                 <TrendingUp className="h-4 w-4 mr-2" />
-                Buy Credits
+                Acheter des crédits
               </Button>
               <p className="text-xs text-muted-foreground">
-                100 credits = €1
+                100 crédits = 1€
               </p>
             </div>
           </div>
@@ -410,16 +399,16 @@ export default function SettingsPage() {
           {/* Credit usage info */}
           <div className="mt-4 grid md:grid-cols-3 gap-4 text-sm">
             <div className="p-3 rounded-lg bg-muted">
-              <p className="font-medium">Free Tier Bonus</p>
-              <p className="text-muted-foreground">1000 credits (€10) on signup</p>
+              <p className="font-medium">Bonus gratuit</p>
+              <p className="text-muted-foreground">1000 crédits (10€) à l'inscription</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
-              <p className="font-medium">How Credits Work</p>
-              <p className="text-muted-foreground">Used per AI generation based on tokens</p>
+              <p className="font-medium">Comment ça marche</p>
+              <p className="text-muted-foreground">Utilisés par génération IA selon les tokens</p>
             </div>
             <div className="p-3 rounded-lg bg-muted">
-              <p className="font-medium">Save with BYOK</p>
-              <p className="text-muted-foreground">Use your own API keys = 0 credits used</p>
+              <p className="font-medium">Économise avec BYOK</p>
+              <p className="text-muted-foreground">Tes clés API = 0 crédits utilisés</p>
             </div>
           </div>
           
@@ -427,7 +416,7 @@ export default function SettingsPage() {
             <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <p className="text-sm text-green-600 dark:text-green-400">
                 <Check className="h-4 w-4 inline mr-1" />
-                BYOK Active — Your API keys are used first. Credits serve as fallback if your key quota runs out.
+                BYOK Actif — Tes clés API sont utilisées en priorité. Les crédits servent de secours si ton quota est épuisé.
               </p>
             </div>
           )}
@@ -439,57 +428,57 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            Billing & Plan
+            Facturation & Plan
           </CardTitle>
-          <CardDescription>Manage your subscription</CardDescription>
+          <CardDescription>Gère ton abonnement</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted mb-6">
             <div className="flex items-center gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-medium">Current Plan</p>
+                  <p className="font-medium">Plan actuel</p>
                   <Badge variant={userData?.plan === 'FREE' ? 'secondary' : 'default'}>
                     {userData?.plan || 'FREE'}
                   </Badge>
                   {(userData?.openaiKey || userData?.anthropicKey) && (
                     <Badge variant="outline" className="text-green-500 border-green-500/30">
-                      BYOK Active
+                      BYOK Actif
                     </Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {userData?.plan === 'FREE' ? '3 apps, preview only' : 'Unlimited apps, deployments enabled'}
+                  {userData?.plan === 'FREE' ? '3 apps, aperçu uniquement' : 'Apps illimitées, déploiements activés'}
                 </p>
               </div>
             </div>
-            <Button>Upgrade Plan</Button>
+            <Button>Passer au supérieur</Button>
           </div>
           
           <div className="grid md:grid-cols-3 gap-4">
             <PlanCard
-              name="Free"
-              price="$0"
-              features={['3 apps', 'Preview only', 'BYOK supported']}
+              name="Gratuit"
+              price="0€"
+              features={['3 apps', 'Aperçu uniquement', 'BYOK supporté']}
               current={userData?.plan === 'FREE'}
             />
             <PlanCard
               name="Starter"
-              price="$19"
-              features={['10 apps', 'Deploy to web', 'Custom domains']}
+              price="19€"
+              features={['10 apps', 'Déploiement web', 'Domaines personnalisés']}
               current={userData?.plan === 'STARTER'}
               highlighted
             />
             <PlanCard
               name="Pro"
-              price="$49"
-              features={['Unlimited apps', 'Analytics', 'Priority support']}
+              price="49€"
+              features={['Apps illimitées', 'Analytics', 'Support prioritaire']}
               current={userData?.plan === 'PRO'}
             />
           </div>
           
           <p className="text-center text-sm text-muted-foreground mt-4">
-            💡 Get 50% off any plan when you use BYOK!
+            💡 Obtiens 50% de réduction sur tous les plans avec BYOK !
           </p>
         </CardContent>
       </Card>
@@ -499,31 +488,31 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Security
+            Sécurité
           </CardTitle>
-          <CardDescription>Manage your account security</CardDescription>
+          <CardDescription>Gère la sécurité de ton compte</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Two-Factor Authentication</p>
+              <p className="font-medium">Authentification à deux facteurs</p>
               <p className="text-sm text-muted-foreground">
-                Managed through Clerk - enable in your profile
+                Gérée via Clerk - active-la dans ton profil
               </p>
             </div>
             <Button variant="outline" asChild>
-              <a href="/user/security" target="_blank">Manage 2FA</a>
+              <a href="/user/security" target="_blank">Gérer 2FA</a>
             </Button>
           </div>
           
           <div className="flex items-center justify-between pt-4 border-t">
             <div>
-              <p className="font-medium text-destructive">Delete Account</p>
+              <p className="font-medium text-destructive">Supprimer le compte</p>
               <p className="text-sm text-muted-foreground">
-                Permanently delete your account and all data
+                Supprime définitivement ton compte et toutes tes données
               </p>
             </div>
-            <Button variant="destructive" size="sm">Delete Account</Button>
+            <Button variant="destructive" size="sm">Supprimer le compte</Button>
           </div>
         </CardContent>
       </Card>
@@ -559,7 +548,7 @@ function ApiKeyInput({
     if (status.checking) {
       return (
         <Badge variant="outline" className="text-muted-foreground border-muted text-xs font-normal">
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Checking...
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Vérification...
         </Badge>
       )
     }
@@ -582,14 +571,14 @@ function ApiKeyInput({
     if (status.balance === -1) {
       return (
         <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs font-normal">
-          <Check className="h-3 w-3 mr-1" /> Valid
+          <Check className="h-3 w-3 mr-1" /> Valide
         </Badge>
       )
     }
     
     return (
       <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs font-normal">
-        <Check className="h-3 w-3 mr-1" /> Configured
+        <Check className="h-3 w-3 mr-1" /> Configurée
       </Badge>
     )
   }
@@ -604,7 +593,7 @@ function ApiKeyInput({
         <div className="relative flex-1">
           <Input
             type={show ? 'text' : 'password'}
-            placeholder={hasExisting ? 'Enter new key to replace...' : placeholder}
+            placeholder={hasExisting ? 'Entrer une nouvelle clé pour remplacer...' : placeholder}
             value={value}
             onChange={(e) => onChange(e.target.value)}
           />
@@ -614,7 +603,7 @@ function ApiKeyInput({
           size="icon" 
           onClick={onToggleShow}
           disabled={!hasValue}
-          title={hasValue ? (show ? 'Hide key' : 'Show key') : 'Type a key to preview'}
+          title={hasValue ? (show ? 'Cacher la clé' : 'Afficher la clé') : 'Tape une clé pour prévisualiser'}
         >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
@@ -622,8 +611,8 @@ function ApiKeyInput({
       {hasExisting && !hasValue && (
         <p className="text-xs text-muted-foreground mt-1">
           {status?.error 
-            ? `Status: ${status.error}. Enter a new key to replace.`
-            : 'Key is saved securely. Enter a new key to replace it.'}
+            ? `Statut : ${status.error}. Entre une nouvelle clé pour remplacer.`
+            : 'Clé sauvegardée en sécurité. Entre une nouvelle clé pour la remplacer.'}
         </p>
       )}
     </div>
@@ -652,7 +641,7 @@ function PlanCard({
       <h4 className="font-medium">{name}</h4>
       <p className="text-2xl font-bold my-2">
         {price}
-        {price !== '$0' && <span className="text-sm font-normal text-muted-foreground">/mo</span>}
+        {price !== '0€' && <span className="text-sm font-normal text-muted-foreground">/mois</span>}
       </p>
       <ul className="text-sm text-muted-foreground space-y-1">
         {features.map((f, i) => (
@@ -663,7 +652,7 @@ function PlanCard({
         ))}
       </ul>
       {current && (
-        <p className="text-xs text-primary mt-3 font-medium">Current plan</p>
+        <p className="text-xs text-primary mt-3 font-medium">Plan actuel</p>
       )}
     </div>
   )

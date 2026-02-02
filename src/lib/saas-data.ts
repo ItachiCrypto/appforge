@@ -1,0 +1,370 @@
+// Base de données des SaaS qu'on peut remplacer
+export interface SaaSApp {
+  id: string
+  name: string
+  icon: string
+  monthlyPrice: number
+  category: string
+  templateId: string
+  description: string
+}
+
+export const SAAS_APPS: SaaSApp[] = [
+  // Productivité
+  {
+    id: 'notion',
+    name: 'Notion',
+    icon: '📝',
+    monthlyPrice: 10,
+    category: 'productivité',
+    templateId: 'notion-clone',
+    description: 'Notes et documentation'
+  },
+  {
+    id: 'trello',
+    name: 'Trello',
+    icon: '📋',
+    monthlyPrice: 10,
+    category: 'productivité',
+    templateId: 'kanban',
+    description: 'Gestion de projets Kanban'
+  },
+  {
+    id: 'asana',
+    name: 'Asana',
+    icon: '✅',
+    monthlyPrice: 11,
+    category: 'productivité',
+    templateId: 'task-manager',
+    description: 'Gestion des tâches'
+  },
+  {
+    id: 'monday',
+    name: 'Monday.com',
+    icon: '📊',
+    monthlyPrice: 9,
+    category: 'productivité',
+    templateId: 'project-dashboard',
+    description: 'Gestion de projets'
+  },
+  {
+    id: 'todoist',
+    name: 'Todoist',
+    icon: '☑️',
+    monthlyPrice: 5,
+    category: 'productivité',
+    templateId: 'todo-app',
+    description: 'Liste de tâches'
+  },
+  
+  // Communication
+  {
+    id: 'slack',
+    name: 'Slack',
+    icon: '💬',
+    monthlyPrice: 8,
+    category: 'communication',
+    templateId: 'chat-app',
+    description: 'Messagerie d\'équipe'
+  },
+  {
+    id: 'intercom',
+    name: 'Intercom',
+    icon: '🗨️',
+    monthlyPrice: 74,
+    category: 'communication',
+    templateId: 'support-chat',
+    description: 'Support client'
+  },
+  {
+    id: 'crisp',
+    name: 'Crisp',
+    icon: '💭',
+    monthlyPrice: 25,
+    category: 'communication',
+    templateId: 'live-chat',
+    description: 'Chat en direct'
+  },
+  
+  // Marketing
+  {
+    id: 'mailchimp',
+    name: 'Mailchimp',
+    icon: '📧',
+    monthlyPrice: 13,
+    category: 'marketing',
+    templateId: 'email-sender',
+    description: 'Email marketing'
+  },
+  {
+    id: 'convertkit',
+    name: 'ConvertKit',
+    icon: '✉️',
+    monthlyPrice: 15,
+    category: 'marketing',
+    templateId: 'newsletter',
+    description: 'Newsletter'
+  },
+  {
+    id: 'buffer',
+    name: 'Buffer',
+    icon: '📱',
+    monthlyPrice: 6,
+    category: 'marketing',
+    templateId: 'social-scheduler',
+    description: 'Planification réseaux sociaux'
+  },
+  {
+    id: 'linktree',
+    name: 'Linktree',
+    icon: '🌳',
+    monthlyPrice: 5,
+    category: 'marketing',
+    templateId: 'link-in-bio',
+    description: 'Page de liens'
+  },
+  
+  // Analytics
+  {
+    id: 'hotjar',
+    name: 'Hotjar',
+    icon: '🔥',
+    monthlyPrice: 32,
+    category: 'analytics',
+    templateId: 'analytics-dashboard',
+    description: 'Heatmaps et analytics'
+  },
+  {
+    id: 'mixpanel',
+    name: 'Mixpanel',
+    icon: '📈',
+    monthlyPrice: 25,
+    category: 'analytics',
+    templateId: 'event-analytics',
+    description: 'Analytics produit'
+  },
+  
+  // Design
+  {
+    id: 'canva',
+    name: 'Canva Pro',
+    icon: '🎨',
+    monthlyPrice: 13,
+    category: 'design',
+    templateId: 'image-editor',
+    description: 'Design graphique'
+  },
+  {
+    id: 'loom',
+    name: 'Loom',
+    icon: '🎥',
+    monthlyPrice: 15,
+    category: 'communication',
+    templateId: 'video-recorder',
+    description: 'Enregistrement vidéo'
+  },
+  
+  // CRM
+  {
+    id: 'hubspot',
+    name: 'HubSpot',
+    icon: '🧲',
+    monthlyPrice: 45,
+    category: 'crm',
+    templateId: 'crm-dashboard',
+    description: 'CRM et ventes'
+  },
+  {
+    id: 'pipedrive',
+    name: 'Pipedrive',
+    icon: '🎯',
+    monthlyPrice: 15,
+    category: 'crm',
+    templateId: 'sales-pipeline',
+    description: 'Pipeline de ventes'
+  },
+  
+  // Formulaires
+  {
+    id: 'typeform',
+    name: 'Typeform',
+    icon: '📝',
+    monthlyPrice: 25,
+    category: 'formulaires',
+    templateId: 'form-builder',
+    description: 'Formulaires interactifs'
+  },
+  {
+    id: 'calendly',
+    name: 'Calendly',
+    icon: '📅',
+    monthlyPrice: 12,
+    category: 'productivité',
+    templateId: 'booking-calendar',
+    description: 'Prise de rendez-vous'
+  },
+  
+  // Facturation
+  {
+    id: 'freshbooks',
+    name: 'FreshBooks',
+    icon: '💰',
+    monthlyPrice: 17,
+    category: 'facturation',
+    templateId: 'invoice-app',
+    description: 'Facturation'
+  },
+  {
+    id: 'wave',
+    name: 'Wave',
+    icon: '🌊',
+    monthlyPrice: 16,
+    category: 'facturation',
+    templateId: 'accounting',
+    description: 'Comptabilité'
+  },
+]
+
+// Templates correspondants avec leurs prompts
+export const SAAS_TEMPLATES: Record<string, {
+  name: string
+  prompt: string
+  description: string
+}> = {
+  'notion-clone': {
+    name: 'Clone Notion',
+    prompt: 'Create a Notion-like notes app with: sidebar navigation, rich text editor, nested pages support, and dark mode. Make it beautiful and functional.',
+    description: 'Notes et docs avec édition riche'
+  },
+  'kanban': {
+    name: 'Tableau Kanban',
+    prompt: 'Create a Trello-style kanban board with: draggable cards, multiple columns (To Do, In Progress, Done), card details modal, and labels. Use a clean modern design.',
+    description: 'Gestion de projets en colonnes'
+  },
+  'task-manager': {
+    name: 'Gestionnaire de tâches',
+    prompt: 'Create a task management app with: task list with priorities, due dates, project grouping, filters, and progress tracking. Clean and minimal design.',
+    description: 'Suivi des tâches et projets'
+  },
+  'project-dashboard': {
+    name: 'Dashboard Projet',
+    prompt: 'Create a project management dashboard with: project cards, team members, progress bars, timeline view, and status indicators. Professional design.',
+    description: 'Vue d\'ensemble des projets'
+  },
+  'todo-app': {
+    name: 'Todo App',
+    prompt: 'Create a beautiful todo app with: task input, categories, due dates, completion tracking, and daily/weekly views. Minimalist and satisfying UX.',
+    description: 'Liste de tâches simple'
+  },
+  'chat-app': {
+    name: 'Chat d\'équipe',
+    prompt: 'Create a Slack-like team chat with: channel sidebar, message list with avatars, message input with emoji, and channel creation. Modern chat UI.',
+    description: 'Messagerie instantanée'
+  },
+  'support-chat': {
+    name: 'Support Client',
+    prompt: 'Create a customer support chat widget and dashboard with: visitor list, conversation view, canned responses, and status indicators.',
+    description: 'Widget de chat support'
+  },
+  'live-chat': {
+    name: 'Chat en direct',
+    prompt: 'Create a live chat widget for websites with: chat bubble, conversation interface, typing indicators, and agent availability status.',
+    description: 'Chat widget pour site'
+  },
+  'email-sender': {
+    name: 'Email Marketing',
+    prompt: 'Create an email marketing dashboard with: campaign list, email composer with templates, subscriber management, and basic analytics.',
+    description: 'Campagnes email'
+  },
+  'newsletter': {
+    name: 'Newsletter',
+    prompt: 'Create a newsletter management app with: subscriber list, email composer, send history, and subscription form preview.',
+    description: 'Gestion de newsletter'
+  },
+  'social-scheduler': {
+    name: 'Planificateur Social',
+    prompt: 'Create a social media scheduler with: calendar view, post composer, platform selection (Twitter, LinkedIn, Instagram mockups), and scheduled posts list.',
+    description: 'Planification des posts'
+  },
+  'link-in-bio': {
+    name: 'Page de liens',
+    prompt: 'Create a Linktree-style link in bio page with: customizable profile, link list with icons, theme customization, and mobile preview.',
+    description: 'Page de liens personnalisée'
+  },
+  'analytics-dashboard': {
+    name: 'Dashboard Analytics',
+    prompt: 'Create an analytics dashboard with: visitor charts, heatmap visualization mockup, session recordings list, and key metrics cards.',
+    description: 'Visualisation des données'
+  },
+  'event-analytics': {
+    name: 'Analytics Événements',
+    prompt: 'Create a product analytics dashboard with: event tracking table, funnel visualization, user segments, and retention charts.',
+    description: 'Suivi des événements'
+  },
+  'image-editor': {
+    name: 'Éditeur d\'images',
+    prompt: 'Create an image editor UI with: canvas area, toolbar with basic tools, layer panel, and template gallery. Focus on clean design.',
+    description: 'Création graphique simple'
+  },
+  'video-recorder': {
+    name: 'Enregistreur Vidéo',
+    prompt: 'Create a video recording app UI with: recording controls, video preview, recording list, and share options.',
+    description: 'Enregistrement et partage'
+  },
+  'crm-dashboard': {
+    name: 'CRM Dashboard',
+    prompt: 'Create a CRM dashboard with: contacts list, deal pipeline, activity timeline, and key sales metrics. Professional B2B design.',
+    description: 'Gestion des contacts'
+  },
+  'sales-pipeline': {
+    name: 'Pipeline de Ventes',
+    prompt: 'Create a sales pipeline view with: deal stages as columns, draggable deal cards, deal value totals, and win probability.',
+    description: 'Suivi des opportunités'
+  },
+  'form-builder': {
+    name: 'Créateur de Formulaires',
+    prompt: 'Create a form builder with: drag-and-drop questions, question types (text, choice, rating), preview mode, and responses view.',
+    description: 'Formulaires personnalisés'
+  },
+  'booking-calendar': {
+    name: 'Calendrier RDV',
+    prompt: 'Create a booking calendar app with: availability settings, calendar view, booking form, and appointments list. Clean scheduling UX.',
+    description: 'Prise de rendez-vous'
+  },
+  'invoice-app': {
+    name: 'Facturation',
+    prompt: 'Create an invoice app with: invoice list, invoice creator with line items, client management, and payment status tracking.',
+    description: 'Création de factures'
+  },
+  'accounting': {
+    name: 'Comptabilité',
+    prompt: 'Create a simple accounting dashboard with: income/expenses tracking, transaction list, category breakdown chart, and monthly summary.',
+    description: 'Suivi financier'
+  },
+}
+
+// Catégories pour le regroupement
+export const SAAS_CATEGORIES = [
+  { id: 'productivité', name: 'Productivité', icon: '⚡' },
+  { id: 'communication', name: 'Communication', icon: '💬' },
+  { id: 'marketing', name: 'Marketing', icon: '📣' },
+  { id: 'analytics', name: 'Analytics', icon: '📊' },
+  { id: 'design', name: 'Design', icon: '🎨' },
+  { id: 'crm', name: 'CRM & Ventes', icon: '🎯' },
+  { id: 'formulaires', name: 'Formulaires', icon: '📝' },
+  { id: 'facturation', name: 'Facturation', icon: '💰' },
+]
+
+// Fonction utilitaire pour calculer les économies
+export function calculateYearlySavings(monthlyPrice: number): number {
+  return monthlyPrice * 12
+}
+
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}

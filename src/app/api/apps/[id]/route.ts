@@ -69,14 +69,14 @@ export async function PATCH(
     }
 
     // Parse and validate request body
-    let body: { name?: string; description?: string; files?: object; status?: string }
+    let body: { name?: string; description?: string; files?: object; status?: string; metadata?: object }
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const { name, description, files, status } = body
+    const { name, description, files, status, metadata } = body
 
     // Validate inputs
     if (name !== undefined && (typeof name !== 'string' || name.length > 100)) {
@@ -87,6 +87,9 @@ export async function PATCH(
     }
     if (files !== undefined && (typeof files !== 'object' || files === null)) {
       return NextResponse.json({ error: 'Files must be an object' }, { status: 400 })
+    }
+    if (metadata !== undefined && (typeof metadata !== 'object' || metadata === null)) {
+      return NextResponse.json({ error: 'Metadata must be an object' }, { status: 400 })
     }
     const validStatuses: AppStatus[] = ['DRAFT', 'PREVIEW', 'DEPLOYED', 'ARCHIVED']
     if (status !== undefined && !validStatuses.includes(status as AppStatus)) {
@@ -102,6 +105,7 @@ export async function PATCH(
         ...(name && { name }),
         ...(description !== undefined && { description }),
         ...(files && { files }),
+        ...(metadata && { metadata }),
         ...(status && { status: status as AppStatus }),
         updatedAt: new Date(),
       },

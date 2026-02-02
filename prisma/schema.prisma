@@ -229,6 +229,9 @@ model App {
   // Code stored as JSON (LEGACY - problematic)
   files       Json     @default("{}")
   
+  // Métadonnées (économies SaaS, etc.)
+  metadata    Json?
+  
   // Deploy info
   vercelProjectId String?
   vercelUrl       String?
