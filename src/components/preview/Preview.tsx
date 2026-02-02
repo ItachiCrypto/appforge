@@ -6,19 +6,22 @@ import {
   SandpackCodeEditor,
   SandpackLayout 
 } from '@codesandbox/sandpack-react'
-import { Smartphone, Monitor, Server, Globe, Apple, Code, Eye } from 'lucide-react'
+import { Smartphone, Monitor, Server, Globe, Apple } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type AppType = 'WEB' | 'IOS' | 'ANDROID' | 'DESKTOP' | 'API'
 
 /**
- * Normalize file paths: convert .tsx/.ts to .js for Sandpack compatibility
+ * Clean up code for Sandpack compatibility:
+ * - Convert .tsx/.ts to .js
+ * - Remove problematic imports (tailwind css files, etc.)
  */
 export function normalizeFilesForSandpack(files: Record<string, string>): Record<string, string> {
   const normalized: Record<string, string> = {}
   
   for (const [path, content] of Object.entries(files)) {
     let normalizedPath = path
+    let normalizedContent = content
     
     // Convert TypeScript extensions to JS for Sandpack react template
     if (path === '/App.tsx' || path === '/App.ts') {
@@ -29,7 +32,17 @@ export function normalizeFilesForSandpack(files: Record<string, string>): Record
       normalizedPath = path.replace(/\.ts$/, '.js')
     }
     
-    normalized[normalizedPath] = content
+    // Remove problematic imports that Sandpack can't resolve
+    // Tailwind is loaded via CDN, so we don't need these imports
+    normalizedContent = normalizedContent
+      // Remove tailwind CSS imports
+      .replace(/^import\s+['"]tailwindcss\/.*['"];?\s*$/gm, '// Tailwind loaded via CDN')
+      .replace(/^import\s+['"]\.\/.*\.css['"];?\s*$/gm, '') // Remove local CSS imports (optional)
+      // Remove React import (Sandpack provides it globally)
+      .replace(/^import\s+React\s+from\s+['"]react['"];?\s*$/gm, '')
+      .replace(/^import\s+\{\s*\}\s+from\s+['"]react['"];?\s*$/gm, '')
+    
+    normalized[normalizedPath] = normalizedContent
   }
   
   return normalized
@@ -47,234 +60,158 @@ export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
   WEB: {
     '/App.js': `export default function App() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-      <div className="text-center text-white">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your App</h1>
-        <p className="text-xl opacity-80">Start building something amazing!</p>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+          <h1 className="text-4xl font-bold text-white mb-4">
+            Welcome to Your App ✨
+          </h1>
+          <p className="text-xl text-white/80 mb-6">
+            Start building something amazing!
+          </p>
+          <button className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-lg hover:bg-white/90 transition-all transform hover:scale-105">
+            Get Started
+          </button>
+        </div>
       </div>
     </div>
   )
 }`,
-    '/styles.css': `* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: system-ui, -apple-system, sans-serif; }`,
   },
   IOS: {
-    '/App.js': `import React from 'react';
-
-// iOS-style App Simulation
-export default function App() {
+    '/App.js': `export default function App() {
   return (
-    <div style={styles.container}>
-      <div style={styles.statusBar}>
+    <div className="min-h-screen bg-gray-100 font-sans">
+      {/* Status Bar */}
+      <div className="bg-gray-100 px-6 py-2 flex justify-between items-center text-sm font-semibold">
         <span>9:41</span>
-        <span>📶 🔋</span>
+        <div className="flex gap-1">
+          <span>📶</span>
+          <span>🔋</span>
+        </div>
       </div>
-      <div style={styles.content}>
-        <h1 style={styles.title}>My iOS App</h1>
-        <p style={styles.subtitle}>Built with React Native</p>
+      
+      {/* Content */}
+      <div className="px-4 py-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">My iOS App</h1>
+        <p className="text-gray-500 mb-8">Built with React Native</p>
+        
+        {/* Card */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl">
+              📱
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Welcome</h3>
+              <p className="text-gray-500 text-sm">Tap to continue</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    height: '100vh',
-    backgroundColor: '#f2f2f7'
-  },
-  statusBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '12px 20px',
-    fontSize: '14px',
-    fontWeight: '600'
-  },
-  content: {
-    padding: '20px',
-    textAlign: 'center'
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    marginBottom: '8px'
-  },
-  subtitle: {
-    fontSize: '17px',
-    color: '#8e8e93'
-  }
 }`,
   },
   ANDROID: {
-    '/App.js': `import React from 'react';
-
-// Android Material Design Style
-export default function App() {
+    '/App.js': `export default function App() {
   return (
-    <div style={styles.container}>
-      <div style={styles.appBar}>
-        <span style={styles.appTitle}>My Android App</span>
+    <div className="min-h-screen bg-gray-50 font-sans">
+      {/* App Bar */}
+      <div className="bg-indigo-600 px-4 py-4 shadow-lg">
+        <h1 className="text-xl font-medium text-white">My Android App</h1>
       </div>
-      <div style={styles.content}>
-        <h1 style={styles.headline}>Hello Android!</h1>
-        <p style={styles.body}>Built with React Native</p>
+      
+      {/* Content */}
+      <div className="p-4">
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <h2 className="text-lg font-medium text-gray-900 mb-2">Hello Android!</h2>
+          <p className="text-gray-600">Built with React Native</p>
+        </div>
+        
+        {/* FAB */}
+        <button className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white text-2xl hover:bg-indigo-700 transition-colors">
+          +
+        </button>
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: {
-    fontFamily: 'Roboto, sans-serif',
-    height: '100vh',
-    backgroundColor: '#fafafa'
-  },
-  appBar: {
-    backgroundColor: '#6200ee',
-    padding: '16px',
-    color: 'white'
-  },
-  appTitle: {
-    fontSize: '20px',
-    fontWeight: '500'
-  },
-  content: {
-    padding: '16px',
-    textAlign: 'center'
-  },
-  headline: {
-    fontSize: '24px',
-    fontWeight: '400',
-    marginBottom: '8px'
-  },
-  body: {
-    fontSize: '14px',
-    color: '#757575'
-  }
 }`,
   },
   DESKTOP: {
-    '/App.js': `import React from 'react';
-
-// Desktop App Style (Electron-like)
-export default function App() {
+    '/App.js': `export default function App() {
   return (
-    <div style={styles.container}>
-      <div style={styles.titleBar}>
-        <span style={styles.title}>My Desktop App</span>
-        <div style={styles.windowControls}>
-          <span style={styles.control}>—</span>
-          <span style={styles.control}>□</span>
-          <span style={{...styles.control, backgroundColor: '#ff5f57'}}>×</span>
+    <div className="min-h-screen bg-gray-900 text-white font-sans">
+      {/* Title Bar */}
+      <div className="bg-gray-800 px-4 py-2 flex justify-between items-center border-b border-gray-700">
+        <span className="text-sm text-gray-300">My Desktop App</span>
+        <div className="flex gap-2">
+          <button className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400" />
+          <button className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400" />
+          <button className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400" />
         </div>
       </div>
-      <div style={styles.content}>
-        <h1>Desktop Application</h1>
-        <p>Built with Electron</p>
+      
+      {/* Content */}
+      <div className="p-8">
+        <h1 className="text-3xl font-bold mb-4">Desktop Application</h1>
+        <p className="text-gray-400 mb-6">Built with Electron</p>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="font-semibold mb-2">Feature 1</h3>
+            <p className="text-sm text-gray-400">Description here</p>
+          </div>
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="font-semibold mb-2">Feature 2</h3>
+            <p className="text-sm text-gray-400">Description here</p>
+          </div>
+        </div>
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: {
-    height: '100vh',
-    backgroundColor: '#1e1e1e',
-    color: 'white',
-    fontFamily: 'system-ui'
-  },
-  titleBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '8px 12px',
-    backgroundColor: '#323232',
-    borderBottom: '1px solid #404040'
-  },
-  title: {
-    fontSize: '13px'
-  },
-  windowControls: {
-    display: 'flex',
-    gap: '8px'
-  },
-  control: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-    backgroundColor: '#3a3a3a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '10px',
-    cursor: 'pointer'
-  },
-  content: {
-    padding: '40px',
-    textAlign: 'center'
-  }
 }`,
   },
   API: {
-    '/App.js': `import React from 'react';
-
-// API Documentation Style
-export default function App() {
+    '/App.js': `export default function App() {
+  const endpoints = [
+    { method: 'GET', path: '/api/users', desc: 'List all users' },
+    { method: 'POST', path: '/api/users', desc: 'Create a user' },
+    { method: 'GET', path: '/api/users/:id', desc: 'Get user by ID' },
+    { method: 'DELETE', path: '/api/users/:id', desc: 'Delete user' },
+  ]
+  
+  const methodColors = {
+    GET: 'bg-green-500',
+    POST: 'bg-blue-500',
+    PUT: 'bg-yellow-500',
+    DELETE: 'bg-red-500',
+  }
+  
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>API Documentation</h1>
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-mono">
+      {/* Header */}
+      <div className="border-b border-gray-800 px-6 py-4">
+        <h1 className="text-2xl font-bold">API Documentation</h1>
+        <p className="text-gray-500 text-sm">v1.0.0</p>
       </div>
-      <div style={styles.content}>
-        <div style={styles.endpoint}>
-          <span style={styles.method}>GET</span>
-          <code style={styles.path}>/api/users</code>
-        </div>
-        <p style={styles.description}>Returns a list of users</p>
+      
+      {/* Endpoints */}
+      <div className="p-6 space-y-3">
+        {endpoints.map((ep, i) => (
+          <div key={i} className="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-gray-700 transition-colors">
+            <div className="flex items-center gap-3 mb-2">
+              <span className={\`\${methodColors[ep.method]} text-white text-xs font-bold px-2 py-1 rounded\`}>
+                {ep.method}
+              </span>
+              <code className="text-gray-300">{ep.path}</code>
+            </div>
+            <p className="text-gray-500 text-sm">{ep.desc}</p>
+          </div>
+        ))}
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: {
-    fontFamily: 'monospace',
-    height: '100vh',
-    backgroundColor: '#0d1117',
-    color: '#c9d1d9'
-  },
-  header: {
-    padding: '20px',
-    borderBottom: '1px solid #30363d'
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: '600'
-  },
-  content: {
-    padding: '20px'
-  },
-  endpoint: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '8px'
-  },
-  method: {
-    backgroundColor: '#238636',
-    color: 'white',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  path: {
-    fontSize: '14px'
-  },
-  description: {
-    fontSize: '14px',
-    color: '#8b949e'
-  }
 }`,
   },
 }
@@ -304,6 +241,39 @@ export function getAppTypeLabel(type: AppType): string {
   return labels[type] || 'App'
 }
 
+// Sandpack dark theme
+const darkTheme = {
+  colors: {
+    surface1: '#1e1e2e',
+    surface2: '#313244',
+    surface3: '#45475a',
+    clickable: '#cdd6f4',
+    base: '#cdd6f4',
+    disabled: '#6c7086',
+    hover: '#f5e0dc',
+    accent: '#cba6f7',
+    error: '#f38ba8',
+    errorSurface: '#45475a',
+  },
+  syntax: {
+    plain: '#cdd6f4',
+    comment: { color: '#6c7086', fontStyle: 'italic' },
+    keyword: '#cba6f7',
+    tag: '#f38ba8',
+    punctuation: '#9399b2',
+    definition: '#89b4fa',
+    property: '#89dceb',
+    static: '#fab387',
+    string: '#a6e3a1',
+  },
+  font: {
+    body: 'system-ui, -apple-system, sans-serif',
+    mono: '"JetBrains Mono", "Fira Code", monospace',
+    size: '13px',
+    lineHeight: '1.6',
+  },
+}
+
 // Composant Preview principal
 export function Preview({ files, appType, showCode = false, className }: PreviewProps) {
   // Normalize TypeScript files to JS for Sandpack
@@ -313,6 +283,15 @@ export function Preview({ files, appType, showCode = false, className }: Preview
   const defaultFiles = DEFAULT_FILES[appType] || DEFAULT_FILES.WEB
   const mergedFiles = { ...defaultFiles, ...normalizedFiles }
 
+  // Common Sandpack setup with Tailwind CSS via CDN
+  const sandpackSetup = {
+    dependencies: {},
+    // Load Tailwind CSS via CDN - no npm install needed
+    externalResources: [
+      'https://cdn.tailwindcss.com',
+    ],
+  }
+
   // Rendu du preview selon le type
   const renderPreview = () => {
     if (showCode) {
@@ -320,7 +299,11 @@ export function Preview({ files, appType, showCode = false, className }: Preview
         <SandpackProvider
           template="react"
           files={mergedFiles}
-          theme="auto"
+          theme={darkTheme}
+          customSetup={sandpackSetup}
+          options={{
+            externalResources: sandpackSetup.externalResources,
+          }}
         >
           <SandpackLayout>
             <SandpackCodeEditor 
@@ -341,10 +324,15 @@ export function Preview({ files, appType, showCode = false, className }: Preview
       <SandpackProvider
         template="react"
         files={mergedFiles}
-        theme="auto"
+        theme={darkTheme}
+        customSetup={sandpackSetup}
+        options={{
+          externalResources: sandpackSetup.externalResources,
+        }}
       >
         <SandpackPreview 
           showNavigator={false}
+          showRefreshButton={false}
           style={{ height: '100%', minHeight: '400px' }}
         />
       </SandpackProvider>
@@ -352,7 +340,7 @@ export function Preview({ files, appType, showCode = false, className }: Preview
   }
 
   return (
-    <div className={cn("h-full min-h-[400px]", className)}>
+    <div className={cn("h-full min-h-[400px] rounded-lg overflow-hidden", className)}>
       {renderPreview()}
     </div>
   )

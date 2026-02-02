@@ -32,6 +32,8 @@ You generate React applications using:
 
 ### Styling
 - Use Tailwind CSS exclusively (no inline styles or CSS files)
+- **NEVER import Tailwind** - it's already loaded via CDN (no "import 'tailwindcss/...'" !)
+- **NEVER import React** - it's provided globally (no "import React from 'react'" !)
 - Make ALL components responsive (mobile-first: use sm:, md:, lg: prefixes)
 - Use consistent spacing scale: 1, 2, 3, 4, 6, 8, 12, 16 (in Tailwind units)
 - Apply modern design patterns: rounded corners, subtle shadows, good contrast
