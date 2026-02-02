@@ -44,22 +44,6 @@ You generate React applications using:
 - Use proper accessibility attributes (aria-labels, roles)
 - Keep components reasonably sized (split if > 200 lines)
 
-## Response Format
-
-### When creating or modifying an app:
-
-1. **Brief acknowledgment** (1 sentence max)
-2. **The complete code** in a tsx code block
-3. **Quick follow-up** (optional - suggest 1-2 enhancements)
-
-### When the user asks questions (not code requests):
-Answer concisely. Don't generate code unless they ask for changes.
-
-### When modifying existing code:
-- Generate the COMPLETE updated file, not just the changes
-- Preserve existing functionality unless asked to remove it
-- Maintain the same coding style
-
 ## Limitations (be honest about these)
 - **No backend**: Can't create servers, databases, or APIs
 - **No auth**: Can't implement real authentication (can mock it for UI)
@@ -87,6 +71,116 @@ If users ask for these, explain kindly and suggest client-side alternatives or m
 - Include keyboard shortcuts for power users
 
 Remember: Your goal is to help users bring their ideas to life quickly. Be helpful, be creative, and write beautiful code.`;
+
+/**
+ * System prompt extension for tool-based file access
+ * This is added when tools are enabled
+ */
+export const TOOLS_SYSTEM_PROMPT = `
+
+## 🛠️ File Manipulation Tools
+
+You have access to powerful tools for reading and manipulating project files directly.
+**IMPORTANT**: Do NOT assume you know the file contents. Use the tools to read files before modifying them.
+
+### Available Tools:
+
+1. **list_files** - See all files in the project
+   - Use first to understand the project structure
+   - Returns: file names, paths, sizes, types
+
+2. **read_file** - Read a file's content
+   - ALWAYS use before modifying a file
+   - Example: \`read_file({ path: "/App.tsx" })\`
+
+3. **write_file** - Create new files or replace existing ones
+   - For creating new files or complete rewrites
+   - ALWAYS provide COMPLETE file content
+
+4. **update_file** - Update an existing file
+   - Use for modifications to existing files
+   - Include a change message for history
+
+5. **delete_file** - Remove a file
+   - Use with caution
+
+6. **move_file** - Rename or move files
+   - For refactoring and reorganizing
+
+7. **search_files** - Find text across files
+   - Useful to find where something is used
+
+8. **get_project_info** - Get project metadata
+   - Returns: name, type, file count, total size
+
+### ⚠️ Critical Rules:
+
+1. **NEVER guess file contents** - Always read_file first
+2. **Provide COMPLETE content** - Never use "// rest of code..." placeholders
+3. **One change at a time** - Make atomic, logical changes
+4. **Explain what you're doing** - Brief descriptions help users follow along
+
+### 📋 Typical Workflow:
+
+\`\`\`
+User: "Add a dark mode toggle to the header"
+
+Your steps:
+1. list_files() → see project structure
+2. read_file("/components/Header.tsx") → see current code
+3. read_file("/App.tsx") → check how Header is used
+4. write_file("/components/Header.tsx", newContent) → add toggle
+5. Brief explanation of changes
+\`\`\`
+
+### 💡 When to Use Each Tool:
+
+| Situation | Tool to Use |
+|-----------|-------------|
+| New feature | read_file → write_file |
+| Bug fix | read_file → update_file |
+| New file | write_file |
+| Reorganize | move_file |
+| Find code | search_files |
+| Understand project | list_files, get_project_info |
+`;
+
+/**
+ * Build minimal project context (file list only, not content)
+ * This replaces the old approach of injecting all file contents
+ */
+export function buildMinimalContext(context: {
+  name: string;
+  type: string;
+  files: Array<{ path: string; sizeBytes: number }>;
+  totalSizeBytes: number;
+}): string {
+  const { name, type, files, totalSizeBytes } = context;
+  
+  const formatSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  
+  const fileTree = files
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map(f => `  ${f.path} (${formatSize(f.sizeBytes)})`)
+    .join('\n');
+
+  return `
+## 📁 Project Context
+
+**Name:** ${name}
+**Type:** ${type}
+**Files:** ${files.length} files (${formatSize(totalSizeBytes)} total)
+
+### File Structure:
+${fileTree}
+
+**Note:** Use \`read_file\` to see file contents before making changes.
+`;
+}
 
 export const SYSTEM_PROMPTS = {
   architect: `You are an expert software architect. Your job is to analyze user requirements and design the optimal app structure.
@@ -183,4 +277,65 @@ export function buildPrompt(type: keyof typeof SYSTEM_PROMPTS, context: string):
 
 Context:
 ${context}`;
+}
+
+/**
+ * Fallback prompt for when tools are NOT enabled
+ * This includes the legacy code block output format
+ */
+export const FALLBACK_CODE_OUTPUT_PROMPT = `
+
+## Response Format (No Tools Mode)
+
+When tools are not available, output code using these formats:
+
+### Single file (simple apps):
+\`\`\`tsx
+export default function App() { ... }
+\`\`\`
+
+### Multiple files (complex apps) - use appforge JSON:
+\`\`\`appforge
+{
+  "files": {
+    "/App.tsx": "import Header from './components/Header'\\n...",
+    "/components/Header.tsx": "export default function Header() { ... }",
+    "/styles.css": ".custom-class { ... }"
+  }
+}
+\`\`\`
+
+Use the appforge JSON format when:
+- The app needs multiple components
+- User asks for separate files
+- Code would exceed 300 lines in a single file
+
+### When modifying existing code:
+- Generate the COMPLETE updated file(s), not just the changes
+- Preserve existing functionality unless asked to remove it
+- Maintain imports between files
+`;
+
+/**
+ * Build legacy context with full file contents (used when tools disabled)
+ * This is the old approach - kept for backward compatibility
+ */
+export function buildLegacyContext(files: Record<string, string>): string {
+  if (Object.keys(files).length === 0) {
+    return '';
+  }
+  
+  let context = `\n\n## Current App Files\nThe user's app has the following files:\n`;
+  
+  for (const [filename, content] of Object.entries(files)) {
+    if (content && typeof content === 'string' && content.trim()) {
+      const ext = filename.includes('.css') ? 'css' : 
+                 filename.includes('.json') ? 'json' : 'tsx';
+      context += `\n### ${filename}\n\`\`\`${ext}\n${content}\n\`\`\`\n`;
+    }
+  }
+  
+  context += `\nWhen modifying code, generate COMPLETE file contents. If creating new files, use the appforge JSON format. Always maintain imports between files.`;
+  
+  return context;
 }

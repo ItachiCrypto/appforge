@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  // directUrl = env("DIRECT_URL") // Uncomment for Supabase/PlanetScale connection pooling
+}
+
+// ============ ENUMS ============
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  TEAM
+}
+
+enum Provider {
+  ANTHROPIC
+  OPENAI
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum AppStatus {
+  DRAFT
+  PREVIEW
+  DEPLOYED
+  ARCHIVED
+}
+
+enum AppType {
+  WEB
+  IOS
+  ANDROID
+  DESKTOP
+  API
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ============ AI MODELS ============
+
+model AIModel {
+  id              String   @id @default(cuid())
+  provider        Provider
+  modelId         String   @unique  // ex: "claude-opus-4", "gpt-4o"
+  displayName     String   // ex: "Claude Opus", "GPT-4o"
+  inputCostPer1M  Float    // coût input tokens par 1M (en $)
+  outputCostPer1M Float    // coût output tokens par 1M (en $)
+  isAvailable     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  creditUsages    CreditUsage[]
+  preferredByUsers User[]  @relation("PreferredModel")
+}
+
+// ============ USERS ============
+
+model User {
+  id            String    @id @default(cuid())
+  clerkId       String    @unique
+  email         String    @unique
+  name          String?
+  imageUrl      String?
+  
+  // Subscription
+  plan          Plan      @default(FREE)
+  stripeCustomerId String? @unique
+  stripeSubscriptionId String?
+  
+  // Credits System (1 crédit = 0.01€, 1000 crédits = 10€ freemium)
+  creditBalance Float     @default(1000)
+  byokEnabled   Boolean   @default(false)
+  
+  // Preferred AI Model
+  preferredModelId String?
+  preferredModel   AIModel? @relation("PreferredModel", fields: [preferredModelId], references: [id])
+  
+  // BYOK - Encrypted API Keys
+  openaiKey     String?
+  anthropicKey  String?
+  
+  // Relations
+  apps          App[]
+  conversations Conversation[]
+  creditUsages  CreditUsage[]
+  creditPurchases CreditPurchase[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([preferredModelId])
+}
+
+// ============ CREDIT SYSTEM ============
+
+model CreditUsage {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  modelId       String
+  model         AIModel  @relation(fields: [modelId], references: [id])
+  
+  inputTokens   Int
+  outputTokens  Int
+  creditsUsed   Float    // Crédits déduits (coût + 10% marge)
+  usedByok      Boolean  @default(false) // true = clé user, false = platform
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([modelId])
+  @@index([createdAt])
+}
+
+model CreditPurchase {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amountEuros     Float          // Montant payé en euros
+  creditsAdded    Float          // Crédits ajoutés (100 crédits = 1€)
+  stripeSessionId String         @unique
+  status          PurchaseStatus @default(PENDING)
+  
+  createdAt       DateTime       @default(now())
+  
+  @@index([userId])
+  @@index([stripeSessionId])
+}
+
+// ============ APPS ============
+
+model App {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        AppType  @default(WEB)
+  
+  // Code stored as JSON
+  files       Json     @default("{}")
+  
+  // Deploy info
+  vercelProjectId String?
+  vercelUrl       String?
+  deployedAt      DateTime?
+  
+  // Status
+  status      AppStatus @default(DRAFT)
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  
+  versions    AppVersion[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model AppVersion {
+  id        String   @id @default(cuid())
+  version   Int
+  files     Json
+  message   String?
+  
+  appId     String
+  app       App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([appId])
+}
+
+// ============ CONVERSATIONS ============
+
+model Conversation {
+  id        String    @id @default(cuid())
+  title     String?
+  
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  messages  Message[]
+  apps      App[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  role      MessageRole
+  content   String
+  
+  // If assistant generated code
+  codeOutput Json?
+  
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([conversationId])
+}

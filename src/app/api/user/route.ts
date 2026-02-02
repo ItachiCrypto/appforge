@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       plan: user.plan,
       openaiKey: !!user.openaiKey,
       anthropicKey: !!user.anthropicKey,
+      creditBalance: user.creditBalance,
     })
   } catch (error) {
     console.error('Get user error:', error)
@@ -80,11 +81,18 @@ export async function PATCH(req: NextRequest) {
 
     // In production, encrypt these keys before storing
     // For MVP, we'll store them as-is (not recommended for production!)
+    
+    // Determine if BYOK should be enabled (auto-enable when adding a key)
+    const willHaveOpenai = openaiKey !== undefined ? !!openaiKey : !!user.openaiKey
+    const willHaveAnthropic = anthropicKey !== undefined ? !!anthropicKey : !!user.anthropicKey
+    const shouldEnableByok = willHaveOpenai || willHaveAnthropic
+    
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         ...(openaiKey !== undefined && { openaiKey }),
         ...(anthropicKey !== undefined && { anthropicKey }),
+        byokEnabled: shouldEnableByok,
       },
     })
 

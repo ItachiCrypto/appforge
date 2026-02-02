@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Check, Eye, EyeOff, Key, CreditCard, User, Shield, Loader2, Sparkles } from 'lucide-react'
+import { Check, Eye, EyeOff, Key, CreditCard, User, Shield, Loader2, Sparkles, Bot, Zap, Coins, TrendingUp } from 'lucide-react'
 
 interface UserData {
   id: string
@@ -15,7 +15,27 @@ interface UserData {
   plan: string
   openaiKey: boolean
   anthropicKey: boolean
+  creditBalance: number
 }
+
+interface ModelOption {
+  value: string
+  label: string
+  description: string
+  provider: 'anthropic' | 'openai'
+}
+
+const AI_MODELS: ModelOption[] = [
+  // Anthropic
+  { value: 'claude-opus-4', label: 'Claude Opus 4', description: 'Most powerful', provider: 'anthropic' },
+  { value: 'claude-sonnet-4', label: 'Claude Sonnet 4', description: 'Best balance', provider: 'anthropic' },
+  { value: 'claude-haiku-3.5', label: 'Claude Haiku 3.5', description: 'Fast & cheap', provider: 'anthropic' },
+  // OpenAI
+  { value: 'gpt-4o', label: 'GPT-4o', description: 'Fast, intelligent', provider: 'openai' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Affordable', provider: 'openai' },
+  { value: 'o1', label: 'o1', description: 'Advanced reasoning', provider: 'openai' },
+  { value: 'o1-mini', label: 'o1 Mini', description: 'Fast reasoning', provider: 'openai' },
+]
 
 export default function SettingsPage() {
   const { user: clerkUser, isLoaded } = useUser()
@@ -30,13 +50,61 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   
+  // Model preferences
+  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4')
+  const [savingModel, setSavingModel] = useState(false)
+  const [modelSaved, setModelSaved] = useState(false)
+  
+  // API key status
+  const [keyStatus, setKeyStatus] = useState<{
+    openai: { configured: boolean; balance?: number; error?: string; checking?: boolean }
+    anthropic: { configured: boolean; balance?: number; error?: string; checking?: boolean }
+  }>({
+    openai: { configured: false },
+    anthropic: { configured: false },
+  })
+  
+  const checkKeyBalances = async () => {
+    setKeyStatus(prev => ({
+      openai: { ...prev.openai, checking: true },
+      anthropic: { ...prev.anthropic, checking: true },
+    }))
+    
+    try {
+      const res = await fetch('/api/keys/balance')
+      if (res.ok) {
+        const data = await res.json()
+        setKeyStatus(data)
+      }
+    } catch (error) {
+      console.error('Failed to check key balances:', error)
+    }
+  }
+  
   useEffect(() => {
     async function loadUser() {
       try {
-        const res = await fetch('/api/user')
-        if (res.ok) {
-          const data = await res.json()
+        // Load user data and preferences in parallel
+        const [userRes, prefsRes] = await Promise.all([
+          fetch('/api/user'),
+          fetch('/api/user/preferences'),
+        ])
+        
+        if (userRes.ok) {
+          const data = await userRes.json()
           setUserData(data)
+          
+          // Check key balances if user has keys
+          if (data.openaiKey || data.anthropicKey) {
+            checkKeyBalances()
+          }
+        }
+        
+        if (prefsRes.ok) {
+          const prefs = await prefsRes.json()
+          if (prefs.preferredModel) {
+            setSelectedModel(prefs.preferredModel)
+          }
         }
       } catch (error) {
         console.error('Failed to load user:', error)
@@ -68,12 +136,50 @@ export default function SettingsPage() {
         setKeys({ openai: '', anthropic: '' })
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
+        
+        // Re-check key balances after saving
+        if (data.openaiKey || data.anthropicKey) {
+          setTimeout(() => checkKeyBalances(), 500)
+        }
       }
     } catch (error) {
       console.error('Failed to save keys:', error)
     } finally {
       setSaving(false)
     }
+  }
+  
+  const handleModelChange = async (modelId: string) => {
+    setSelectedModel(modelId)
+    setSavingModel(true)
+    
+    try {
+      const res = await fetch('/api/user/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferredModel: modelId }),
+      })
+      
+      if (res.ok) {
+        setModelSaved(true)
+        setTimeout(() => setModelSaved(false), 2000)
+      }
+    } catch (error) {
+      console.error('Failed to save model preference:', error)
+    } finally {
+      setSavingModel(false)
+    }
+  }
+  
+  // Filter models based on available API keys
+  const getAvailableModels = () => {
+    if (!userData) return AI_MODELS
+    
+    return AI_MODELS.map(model => ({
+      ...model,
+      disabled: (model.provider === 'anthropic' && !userData.anthropicKey) ||
+                (model.provider === 'openai' && !userData.openaiKey),
+    }))
   }
   
   if (!isLoaded || loading) {
@@ -144,6 +250,7 @@ export default function SettingsPage() {
             hasExisting={userData?.openaiKey || false}
             show={showKeys.openai}
             onToggleShow={() => setShowKeys({ ...showKeys, openai: !showKeys.openai })}
+            status={keyStatus.openai}
           />
           
           <ApiKeyInput
@@ -154,6 +261,7 @@ export default function SettingsPage() {
             hasExisting={userData?.anthropicKey || false}
             show={showKeys.anthropic}
             onToggleShow={() => setShowKeys({ ...showKeys, anthropic: !showKeys.anthropic })}
+            status={keyStatus.anthropic}
           />
           
           <div className="flex items-center gap-4">
@@ -172,6 +280,157 @@ export default function SettingsPage() {
               Keys are encrypted with AES-256
             </p>
           </div>
+        </CardContent>
+      </Card>
+      
+      {/* AI Model Selection */}
+      <Card className="mb-6" id="model">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            AI Model
+          </CardTitle>
+          <CardDescription>
+            Choose which AI model to use for code generation. Models require the corresponding API key.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Anthropic Models */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded bg-orange-500/10 flex items-center justify-center">
+                  <span className="text-orange-500 text-xs font-bold">A</span>
+                </div>
+                <span className="font-medium">Anthropic (Claude)</span>
+                {!userData?.anthropicKey && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    No API key
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-2">
+                {AI_MODELS.filter(m => m.provider === 'anthropic').map(model => (
+                  <ModelButton
+                    key={model.value}
+                    model={model}
+                    selected={selectedModel === model.value}
+                    disabled={!userData?.anthropicKey}
+                    onClick={() => handleModelChange(model.value)}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            {/* OpenAI Models */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded bg-green-500/10 flex items-center justify-center">
+                  <span className="text-green-500 text-xs font-bold">O</span>
+                </div>
+                <span className="font-medium">OpenAI (GPT)</span>
+                {!userData?.openaiKey && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    No API key
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-2">
+                {AI_MODELS.filter(m => m.provider === 'openai').map(model => (
+                  <ModelButton
+                    key={model.value}
+                    model={model}
+                    selected={selectedModel === model.value}
+                    disabled={!userData?.openaiKey}
+                    onClick={() => handleModelChange(model.value)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {savingModel && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </div>
+          )}
+          {modelSaved && (
+            <div className="flex items-center gap-2 text-sm text-green-500">
+              <Check className="h-4 w-4" />
+              Model preference saved!
+            </div>
+          )}
+          
+          {!userData?.openaiKey && !userData?.anthropicKey && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                <Zap className="h-4 w-4 inline mr-1" />
+                Add an API key above to unlock AI model selection.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Forge Credits Section */}
+      <Card className="mb-6" id="credits">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Coins className="h-5 w-5" />
+            Forge Credits
+          </CardTitle>
+          <CardDescription>
+            Credits are used when you don't have your own API key, or as fallback when your key runs out.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between p-6 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Available Credits</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold">{Math.floor(userData?.creditBalance || 0)}</span>
+                <span className="text-muted-foreground">credits</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                ≈ €{((userData?.creditBalance || 0) / 100).toFixed(2)} value
+              </p>
+            </div>
+            <div className="text-right">
+              <Button variant="outline" className="mb-2">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Buy Credits
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                100 credits = €1
+              </p>
+            </div>
+          </div>
+          
+          {/* Credit usage info */}
+          <div className="mt-4 grid md:grid-cols-3 gap-4 text-sm">
+            <div className="p-3 rounded-lg bg-muted">
+              <p className="font-medium">Free Tier Bonus</p>
+              <p className="text-muted-foreground">1000 credits (€10) on signup</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted">
+              <p className="font-medium">How Credits Work</p>
+              <p className="text-muted-foreground">Used per AI generation based on tokens</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted">
+              <p className="font-medium">Save with BYOK</p>
+              <p className="text-muted-foreground">Use your own API keys = 0 credits used</p>
+            </div>
+          </div>
+          
+          {(userData?.openaiKey || userData?.anthropicKey) && (
+            <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              <p className="text-sm text-green-600 dark:text-green-400">
+                <Check className="h-4 w-4 inline mr-1" />
+                BYOK Active — Your API keys are used first. Credits serve as fallback if your key quota runs out.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
       
@@ -280,6 +539,7 @@ function ApiKeyInput({
   hasExisting,
   show,
   onToggleShow,
+  status,
 }: {
   label: string
   placeholder: string
@@ -288,18 +548,57 @@ function ApiKeyInput({
   hasExisting: boolean
   show: boolean
   onToggleShow: () => void
+  status?: { configured: boolean; balance?: number; error?: string; checking?: boolean }
 }) {
   const hasValue = value.length > 0
+  
+  // Determine status display
+  const getStatusBadge = () => {
+    if (!hasExisting || !status?.configured) return null
+    
+    if (status.checking) {
+      return (
+        <Badge variant="outline" className="text-muted-foreground border-muted text-xs font-normal">
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Checking...
+        </Badge>
+      )
+    }
+    
+    if (status.error) {
+      if (status.balance === 0) {
+        return (
+          <Badge variant="outline" className="text-red-500 border-red-500/30 text-xs font-normal">
+            ⚠️ {status.error}
+          </Badge>
+        )
+      }
+      return (
+        <Badge variant="outline" className="text-yellow-500 border-yellow-500/30 text-xs font-normal">
+          ⚠️ {status.error}
+        </Badge>
+      )
+    }
+    
+    if (status.balance === -1) {
+      return (
+        <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs font-normal">
+          <Check className="h-3 w-3 mr-1" /> Valid
+        </Badge>
+      )
+    }
+    
+    return (
+      <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs font-normal">
+        <Check className="h-3 w-3 mr-1" /> Configured
+      </Badge>
+    )
+  }
   
   return (
     <div>
       <label className="text-sm font-medium mb-1.5 flex items-center gap-2">
         {label}
-        {hasExisting && (
-          <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs font-normal">
-            <Check className="h-3 w-3 mr-1" /> Configured
-          </Badge>
-        )}
+        {getStatusBadge()}
       </label>
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -322,7 +621,9 @@ function ApiKeyInput({
       </div>
       {hasExisting && !hasValue && (
         <p className="text-xs text-muted-foreground mt-1">
-          Key is saved securely. Enter a new key to replace it.
+          {status?.error 
+            ? `Status: ${status.error}. Enter a new key to replace.`
+            : 'Key is saved securely. Enter a new key to replace it.'}
         </p>
       )}
     </div>
@@ -365,5 +666,37 @@ function PlanCard({
         <p className="text-xs text-primary mt-3 font-medium">Current plan</p>
       )}
     </div>
+  )
+}
+
+function ModelButton({
+  model,
+  selected,
+  disabled,
+  onClick,
+}: {
+  model: ModelOption
+  selected: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full text-left p-3 rounded-lg border transition-all ${
+        selected
+          ? 'border-primary bg-primary/10 ring-2 ring-primary'
+          : disabled
+          ? 'border-muted bg-muted/50 opacity-50 cursor-not-allowed'
+          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-medium">{model.label}</span>
+        {selected && <Check className="h-4 w-4 text-primary" />}
+      </div>
+      <p className="text-xs text-muted-foreground mt-0.5">{model.description}</p>
+    </button>
   )
 }

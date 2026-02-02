@@ -6,21 +6,24 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  // directUrl = env("DIRECT_URL") // Uncomment for Supabase/PlanetScale connection pooling
 }
 
-// ============ ENUMS ============
+// ============================================================
+// ENUMS
+// ============================================================
 
 enum Plan {
-  FREE
-  STARTER
-  PRO
-  TEAM
+  FREE        // 3 projects, 100MB storage, 1000 credits/month
+  STARTER     // Legacy - kept for migration
+  PRO         // 20 projects, 5GB storage, 10000 credits/month
+  TEAM        // 100 projects, 50GB storage, 50000 credits/month
+  ENTERPRISE  // Unlimited
 }
 
 enum Provider {
   ANTHROPIC
   OPENAI
+  GOOGLE      // Pour Gemini future
 }
 
 enum PurchaseStatus {
@@ -29,6 +32,7 @@ enum PurchaseStatus {
   FAILED
 }
 
+// Legacy - kept for migration from App model
 enum AppStatus {
   DRAFT
   PREVIEW
@@ -44,13 +48,68 @@ enum AppType {
   API
 }
 
+// NEW v2 enums
+enum ProjectType {
+  // Web Frameworks (JavaScript/TypeScript)
+  NEXTJS        // Full Next.js app
+  REACT         // React SPA (Vite)
+  VUE           // Vue.js
+  SVELTE        // SvelteKit
+  STATIC        // HTML/CSS/JS only
+  
+  // Backend (Node.js)
+  EXPRESS       // Node.js Express backend
+  API           // API only (Hono, Express)
+  
+  // Python Backend
+  PYTHON        // Generic Python
+  FASTAPI       // FastAPI async API
+  FLASK         // Flask web framework
+  DJANGO        // Django full-stack
+  
+  // Mobile
+  REACT_NATIVE  // React Native (Expo)
+  IOS_SWIFT     // Native iOS (Swift/SwiftUI)
+  ANDROID_KOTLIN // Native Android (Kotlin/Compose)
+  FLUTTER       // Flutter cross-platform
+  
+  // Desktop
+  ELECTRON      // Electron cross-platform
+  TAURI         // Tauri (Rust-based)
+}
+
+enum ProjectStatus {
+  DRAFT
+  BUILDING
+  PREVIEW
+  DEPLOYED
+  ARCHIVED
+  ERROR
+}
+
 enum MessageRole {
   USER
   ASSISTANT
   SYSTEM
+  TOOL        // For function calling results
 }
 
-// ============ AI MODELS ============
+enum ChangeType {
+  CREATED
+  MODIFIED
+  DELETED
+  RENAMED
+}
+
+enum MemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+// ============================================================
+// AI MODELS (unchanged - works well)
+// ============================================================
 
 model AIModel {
   id              String   @id @default(cuid())
@@ -63,11 +122,13 @@ model AIModel {
   createdAt       DateTime @default(now())
   
   // Relations
-  creditUsages    CreditUsage[]
+  creditUsages     CreditUsage[]
   preferredByUsers User[]  @relation("PreferredModel")
 }
 
-// ============ USERS ============
+// ============================================================
+// USERS (enriched with storage quotas)
+// ============================================================
 
 model User {
   id            String    @id @default(cuid())
@@ -76,27 +137,37 @@ model User {
   name          String?
   imageUrl      String?
   
-  // Subscription
-  plan          Plan      @default(FREE)
-  stripeCustomerId String? @unique
+  // Plan & Billing
+  plan              Plan      @default(FREE)
+  stripeCustomerId  String?   @unique
   stripeSubscriptionId String?
   
   // Credits System (1 crédit = 0.01€, 1000 crédits = 10€ freemium)
   creditBalance Float     @default(1000)
+  
+  // Storage Quota (NEW v2)
+  storageUsedBytes  BigInt    @default(0)
+  storageQuotaBytes BigInt    @default(104857600)  // 100MB default
+  
+  // BYOK
   byokEnabled   Boolean   @default(false)
+  openaiKey     String?   // encrypted
+  anthropicKey  String?   // encrypted
   
   // Preferred AI Model
   preferredModelId String?
   preferredModel   AIModel? @relation("PreferredModel", fields: [preferredModelId], references: [id])
   
-  // BYOK - Encrypted API Keys
-  openaiKey     String?
-  anthropicKey  String?
-  
-  // Relations
+  // Relations - Legacy
   apps          App[]
   conversations Conversation[]
-  creditUsages  CreditUsage[]
+  
+  // Relations - NEW v2
+  projects        Project[]
+  sharedProjects  ProjectMember[]
+  
+  // Relations - Credits (unchanged)
+  creditUsages    CreditUsage[]
   creditPurchases CreditPurchase[]
   
   createdAt     DateTime  @default(now())
@@ -105,7 +176,9 @@ model User {
   @@index([preferredModelId])
 }
 
-// ============ CREDIT SYSTEM ============
+// ============================================================
+// CREDIT SYSTEM (unchanged - works well)
+// ============================================================
 
 model CreditUsage {
   id            String   @id @default(cuid())
@@ -143,7 +216,9 @@ model CreditPurchase {
   @@index([stripeSessionId])
 }
 
-// ============ APPS ============
+// ============================================================
+// LEGACY: APPS (kept for migration - will be deprecated)
+// ============================================================
 
 model App {
   id          String   @id @default(cuid())
@@ -151,7 +226,7 @@ model App {
   description String?
   type        AppType  @default(WEB)
   
-  // Code stored as JSON
+  // Code stored as JSON (LEGACY - problematic)
   files       Json     @default("{}")
   
   // Deploy info
@@ -191,8 +266,172 @@ model AppVersion {
   @@index([appId])
 }
 
-// ============ CONVERSATIONS ============
+// ============================================================
+// NEW v2: PROJECTS (replaces Apps with proper file system)
+// ============================================================
 
+model Project {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique  // pour URLs: project-name-abc123
+  description     String?
+  
+  // Type & Framework
+  type            ProjectType   @default(NEXTJS)
+  framework       String        @default("nextjs-14")
+  
+  // Status
+  status          ProjectStatus @default(DRAFT)
+  
+  // Preview & Deploy
+  previewUrl      String?       // WebContainer ou deploy preview
+  deployedUrl     String?       // Production URL
+  customDomain    String?       // user's domain
+  
+  // Metadata
+  packageJson     Json?         // Parsed package.json for dependencies
+  totalSizeBytes  BigInt        @default(0)
+  fileCount       Int           @default(0)
+  
+  // Owner
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  files           File[]
+  versions        ProjectVersion[]
+  conversations   ProjectConversation[]
+  members         ProjectMember[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([userId])
+  @@index([slug])
+}
+
+// ============================================================
+// NEW v2: FILES (proper file system with versioning)
+// ============================================================
+
+model File {
+  id            String    @id @default(cuid())
+  
+  // Path relative to project root (e.g., "/src/app/page.tsx")
+  path          String
+  
+  // File info
+  filename      String    // Just the filename
+  extension     String?   // .tsx, .css, etc
+  mimeType      String?
+  
+  // Content Strategy:
+  // - Small files (<100KB): stored inline in `content`
+  // - Large files: stored in R2, reference in `storageKey`
+  content       String?   @db.Text  // For small files
+  storageKey    String?   // R2 key for large files
+  
+  // Metadata
+  sizeBytes     Int       @default(0)
+  isDirectory   Boolean   @default(false)
+  isGenerated   Boolean   @default(false)  // AI-generated vs user-uploaded
+  
+  // Hashing for diff detection
+  contentHash   String?   // SHA-256 of content
+  
+  // Project relation
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Version history
+  versions      FileVersion[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([projectId, path])
+  @@index([projectId])
+  @@index([path])
+  @@index([extension])
+}
+
+model FileVersion {
+  id            String    @id @default(cuid())
+  version       Int       // Auto-increment per file
+  
+  // Content (same strategy as File)
+  content       String?   @db.Text
+  storageKey    String?
+  
+  sizeBytes     Int
+  contentHash   String
+  
+  // Change metadata
+  changeType    ChangeType
+  changeMessage String?   // AI commit message
+  
+  // Relations
+  fileId        String
+  file          File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  
+  // Part of which project snapshot?
+  projectVersionId String?
+  projectVersion   ProjectVersion? @relation(fields: [projectVersionId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([fileId])
+  @@index([projectVersionId])
+}
+
+// Project-level snapshots (like git commits)
+model ProjectVersion {
+  id            String        @id @default(cuid())
+  version       Int           // Auto-increment per project
+  
+  // Snapshot metadata
+  message       String?       // "Added authentication"
+  totalFiles    Int
+  totalSizeBytes BigInt
+  
+  // Reference to all file versions in this snapshot
+  fileVersions  FileVersion[]
+  
+  // Project relation
+  projectId     String
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime      @default(now())
+  
+  @@index([projectId])
+}
+
+// ============================================================
+// NEW v2: COLLABORATION
+// ============================================================
+
+model ProjectMember {
+  id            String          @id @default(cuid())
+  role          MemberRole      @default(VIEWER)
+  
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  invitedAt     DateTime        @default(now())
+  acceptedAt    DateTime?
+  
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// CONVERSATIONS (enhanced for v2 with project link)
+// ============================================================
+
+// Legacy conversations (kept for migration)
 model Conversation {
   id        String    @id @default(cuid())
   title     String?
@@ -201,7 +440,7 @@ model Conversation {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   messages  Message[]
-  apps      App[]
+  apps      App[]     // Legacy link to apps
   
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -209,10 +448,31 @@ model Conversation {
   @@index([userId])
 }
 
+// NEW v2: Project-linked conversations
+model ProjectConversation {
+  id            String    @id @default(cuid())
+  title         String?
+  
+  // Link to project
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId        String    // For quick filtering
+  
+  messages      ProjectMessage[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([projectId])
+  @@index([userId])
+}
+
+// Legacy messages
 model Message {
   id        String      @id @default(cuid())
   role      MessageRole
-  content   String
+  content   String      @db.Text
   
   // If assistant generated code
   codeOutput Json?
@@ -221,6 +481,28 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
+  
+  @@index([conversationId])
+}
+
+// NEW v2: Enhanced messages with token tracking
+model ProjectMessage {
+  id            String      @id @default(cuid())
+  role          MessageRole
+  content       String      @db.Text
+  
+  // AI metadata
+  model         String?     // Which model responded
+  inputTokens   Int?
+  outputTokens  Int?
+  
+  // File changes made in this message
+  fileChanges   Json?       // [{path, changeType, content?}]
+  
+  conversationId String
+  conversation   ProjectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime    @default(now())
   
   @@index([conversationId])
 }

@@ -57,6 +57,7 @@ export const APP_LIMITS = {
   STARTER: 10,
   PRO: Infinity,
   TEAM: Infinity,
+  ENTERPRISE: Infinity,
 }
 
 export const DEFAULT_APP_FILES = {

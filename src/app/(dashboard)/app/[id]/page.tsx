@@ -1,24 +1,24 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { 
-  Send, 
   Loader2, 
-  Sparkles, 
   Rocket, 
-  Code, 
-  Eye,
   ExternalLink,
-  RefreshCw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType } from '@/components/preview'
+import { 
+  ModeToggle, 
+  ExpertLayout, 
+  NormalLayout, 
+  ChatPanel,
+  useEditorStore,
+  type Message 
+} from '@/components/editor'
 
 // Helper to provide actionable guidance for common errors
 function getErrorActionHint(errorMessage: string): string | null {
@@ -49,13 +49,6 @@ function getErrorActionHint(errorMessage: string): string | null {
   return null
 }
 
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  codeOutput?: { files: Record<string, string> }
-}
-
 export default function AppEditorPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -63,23 +56,19 @@ export default function AppEditorPage() {
   const appId = params.id as string
   const initialPrompt = searchParams.get('prompt')
   
+  // Editor mode from store
+  const { mode } = useEditorStore()
+  
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [appType, setAppType] = useState<AppType>('WEB')
   const [files, setFiles] = useState<Record<string, string>>(DEFAULT_FILES.WEB)
-  const [showCode, setShowCode] = useState(false)
   const [appName, setAppName] = useState('My App')
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [isDeploying, setIsDeploying] = useState(false)
   
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const hasInitialized = useRef(false)
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
 
   // Load app data and handle initial prompt
   useEffect(() => {
@@ -148,12 +137,24 @@ export default function AppEditorPage() {
     setInput('')
     setIsLoading(true)
 
+    // Create placeholder for streaming response
+    const assistantId = (Date.now() + 1).toString()
+    setMessages(prev => [...prev, {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+    }])
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appId,
+          // Enable AI tools for on-demand file access (reduces token usage ~70%)
+          enableTools: true,
+          // Still send currentFiles for: 1) fallback mode 2) preview sync
+          currentFiles: files,
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content,
@@ -161,39 +162,71 @@ export default function AppEditorPage() {
         }),
       })
 
-      const data = await res.json()
-
       if (!res.ok) {
-        // Show actual API error message to user
+        const data = await res.json()
         const errorMessage = data.error || 'Failed to send message'
         const actionHint = getErrorActionHint(errorMessage)
         
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `⚠️ ${errorMessage}${actionHint ? `\n\n${actionHint}` : ''}`,
-        }])
+        setMessages(prev => prev.map(m => 
+          m.id === assistantId 
+            ? { ...m, content: `⚠️ ${errorMessage}${actionHint ? `\n\n${actionHint}` : ''}` }
+            : m
+        ))
         return
       }
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.content,
-        codeOutput: data.codeOutput,
+
+      // Handle streaming response
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ''
+      let codeOutput: { files: Record<string, string> } | null = null
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                
+                if (data.type === 'chunk') {
+                  fullContent += data.content
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantId ? { ...m, content: fullContent } : m
+                  ))
+                } else if (data.type === 'done') {
+                  codeOutput = data.codeOutput
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantId ? { ...m, codeOutput: data.codeOutput } : m
+                  ))
+                } else if (data.type === 'error') {
+                  const actionHint = getErrorActionHint(data.error)
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantId 
+                      ? { ...m, content: `⚠️ ${data.error}${actionHint ? `\n\n${actionHint}` : ''}` }
+                      : m
+                  ))
+                }
+              } catch {
+                // Ignore parse errors for incomplete chunks
+              }
+            }
+          }
+        }
       }
 
-      setMessages(prev => [...prev, assistantMessage])
-
       // Update files if code was generated
-      if (data.codeOutput?.files) {
-        // Normalize files: convert .tsx/.ts to .js for Sandpack compatibility
-        const normalizedFiles = normalizeFilesForSandpack(data.codeOutput.files)
+      if (codeOutput?.files) {
+        const normalizedFiles = normalizeFilesForSandpack(codeOutput.files)
         
         setFiles(prev => {
           const updated = { ...prev, ...normalizedFiles }
           
-          // Save to backend (async, don't await)
           fetch(`/api/apps/${appId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -204,13 +237,19 @@ export default function AppEditorPage() {
         })
       }
     } catch (error) {
-      console.error(error)
+      console.error('Chat error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `⚠️ Connection error: ${errorMessage}\n\nPlease check your internet connection and try again.`,
-      }])
+      
+      let displayMessage = `⚠️ Connection error: ${errorMessage}`
+      if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+        displayMessage = '⚠️ Request timed out. Please try again.'
+      } else if (errorMessage.includes('Failed to fetch')) {
+        displayMessage = '⚠️ Network error. Check your connection.'
+      }
+      
+      setMessages(prev => prev.map(m => 
+        m.id === assistantId ? { ...m, content: displayMessage } : m
+      ))
     } finally {
       setIsLoading(false)
     }
@@ -237,12 +276,43 @@ export default function AppEditorPage() {
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
+  // Handle file changes from code editor
+  const handleFileChange = useCallback((path: string, content: string) => {
+    setFiles(prev => {
+      const updated = { ...prev, [path]: content }
+      
+      // Debounced save to API
+      fetch(`/api/apps/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: updated }),
+      }).catch(err => console.error('Failed to save files:', err))
+      
+      return updated
+    })
+  }, [appId])
+
+  // Preview component (used in both modes)
+  const previewComponent = (
+    <Preview 
+      key={JSON.stringify(files)}
+      files={files}
+      appType={appType}
+      showCode={false}
+    />
+  )
+
+  // Chat component (used in both modes)
+  const chatComponent = (
+    <ChatPanel
+      messages={messages}
+      input={input}
+      isLoading={isLoading}
+      onInputChange={setInput}
+      onSend={() => handleSend()}
+      compact={mode === 'expert'}
+    />
+  )
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
@@ -255,15 +325,9 @@ export default function AppEditorPage() {
             <p className="text-xs text-muted-foreground">{getAppTypeLabel(appType)}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setShowCode(!showCode)}
-          >
-            {showCode ? <Eye className="w-4 h-4 mr-2" /> : <Code className="w-4 h-4 mr-2" />}
-            {showCode ? 'Preview' : 'Code'}
-          </Button>
+        <div className="flex items-center gap-3">
+          {/* Mode Toggle */}
+          <ModeToggle />
           
           {deployUrl ? (
             <Button size="sm" variant="outline" asChild>
@@ -285,117 +349,21 @@ export default function AppEditorPage() {
         </div>
       </div>
 
-      {/* Main Content - Split View */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
-        {/* Chat Panel */}
-        <div className="flex flex-col bg-background border rounded-lg overflow-hidden">
-          {/* Messages */}
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
-              {messages.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">Start a conversation</p>
-                  <p className="text-sm">Describe what you want to build</p>
-                </div>
-              )}
-              
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex gap-3 animate-fade-in-up",
-                    message.role === 'user' && "flex-row-reverse"
-                  )}
-                >
-                  <Avatar className="w-8 h-8 shrink-0">
-                    {message.role === 'user' ? (
-                      <>
-                        <AvatarImage src={user?.imageUrl} />
-                        <AvatarFallback>
-                          {user?.firstName?.[0] || 'U'}
-                        </AvatarFallback>
-                      </>
-                    ) : (
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        <Sparkles className="w-4 h-4" />
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  
-                  <div
-                    className={cn(
-                      "rounded-lg px-4 py-2 max-w-[80%]",
-                      message.role === 'user' 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-muted"
-                    )}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    {message.codeOutput && (
-                      <p className="text-xs mt-2 opacity-70">
-                        ✨ Code updated - check the preview!
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="flex gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      <Sparkles className="w-4 h-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="bg-muted rounded-lg px-4 py-3">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-current rounded-full typing-dot" />
-                      <span className="w-2 h-2 bg-current rounded-full typing-dot" />
-                      <span className="w-2 h-2 bg-current rounded-full typing-dot" />
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
-
-          {/* Input */}
-          <div className="p-4 border-t">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Describe what you want to change..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isLoading}
-              />
-              <Button 
-                size="icon" 
-                onClick={() => handleSend()}
-                disabled={!input.trim() || isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Preview Panel - key forces re-render when files change */}
-        <div className="bg-background border rounded-lg overflow-hidden">
-          <Preview 
-            key={JSON.stringify(files)}
+      {/* Main Content - Conditional Layout */}
+      <div className="flex-1 min-h-0 bg-background border rounded-lg overflow-hidden">
+        {mode === 'expert' ? (
+          <ExpertLayout
             files={files}
-            appType={appType}
-            showCode={showCode}
+            onFileChange={handleFileChange}
+            previewComponent={previewComponent}
+            chatComponent={chatComponent}
           />
-        </div>
+        ) : (
+          <NormalLayout
+            previewComponent={previewComponent}
+            chatComponent={chatComponent}
+          />
+        )}
       </div>
     </div>
   )
