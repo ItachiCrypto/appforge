@@ -4,10 +4,12 @@ import {
   SandpackProvider, 
   SandpackPreview, 
   SandpackCodeEditor,
-  SandpackLayout 
+  SandpackLayout,
+  useSandpack,
 } from '@codesandbox/sandpack-react'
-import { Smartphone, Monitor, Server, Globe, Apple } from 'lucide-react'
+import { Smartphone, Monitor, Server, Globe, Apple, AlertTriangle, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 export type AppType = 'WEB' | 'IOS' | 'ANDROID' | 'DESKTOP' | 'API'
 
@@ -21,7 +23,7 @@ export function normalizeFilesForSandpack(files: Record<string, string>): Record
   
   for (const [path, content] of Object.entries(files)) {
     let normalizedPath = path
-    let normalizedContent = content
+    let normalizedContent = content || ''
     
     // Convert TypeScript extensions to JS for Sandpack react template
     if (path === '/App.tsx' || path === '/App.ts') {
@@ -35,12 +37,20 @@ export function normalizeFilesForSandpack(files: Record<string, string>): Record
     // Remove problematic imports that Sandpack can't resolve
     // Tailwind is loaded via CDN, so we don't need these imports
     normalizedContent = normalizedContent
-      // Remove tailwind CSS imports
-      .replace(/^import\s+['"]tailwindcss\/.*['"];?\s*$/gm, '// Tailwind loaded via CDN')
-      .replace(/^import\s+['"]\.\/.*\.css['"];?\s*$/gm, '') // Remove local CSS imports (optional)
-      // Remove React import (Sandpack provides it globally)
-      .replace(/^import\s+React\s+from\s+['"]react['"];?\s*$/gm, '')
-      .replace(/^import\s+\{\s*\}\s+from\s+['"]react['"];?\s*$/gm, '')
+      // Remove ALL tailwind CSS imports (various formats)
+      .replace(/^import\s+['"`]tailwindcss[^'"`]*['"`];?\s*$/gm, '')
+      .replace(/^import\s+['"`]@tailwindcss[^'"`]*['"`];?\s*$/gm, '')
+      .replace(/^import\s+['"`]\.\/tailwind[^'"`]*['"`];?\s*$/gm, '')
+      .replace(/^import\s+['"`]\.\/styles\.css['"`];?\s*$/gm, '')
+      .replace(/^import\s+['"`]\.\/index\.css['"`];?\s*$/gm, '')
+      .replace(/^import\s+['"`]\.\/globals\.css['"`];?\s*$/gm, '')
+      // Remove React imports (Sandpack provides React globally)
+      .replace(/^import\s+React\s*,?\s*\{[^}]*\}\s+from\s+['"`]react['"`];?\s*$/gm, '')
+      .replace(/^import\s+React\s+from\s+['"`]react['"`];?\s*$/gm, '')
+      .replace(/^import\s+\{[^}]*\}\s+from\s+['"`]react['"`];?\s*$/gm, '')
+      // Remove empty lines left by import removal
+      .replace(/^\s*\n/gm, '\n')
+      .replace(/^\n+/, '')
     
     normalized[normalizedPath] = normalizedContent
   }
@@ -53,6 +63,7 @@ interface PreviewProps {
   appType: AppType
   showCode?: boolean
   className?: string
+  onResetFiles?: () => void
 }
 
 // Templates par défaut pour chaque type
@@ -241,55 +252,75 @@ export function getAppTypeLabel(type: AppType): string {
   return labels[type] || 'App'
 }
 
-// Sandpack dark theme (Catppuccin Mocha)
-const darkTheme = {
-  colors: {
-    surface1: '#1e1e2e',
-    surface2: '#313244',
-    surface3: '#45475a',
-    clickable: '#cdd6f4',
-    base: '#cdd6f4',
-    disabled: '#6c7086',
-    hover: '#f5e0dc',
-    accent: '#cba6f7',
-    error: '#f38ba8',
-    errorSurface: '#45475a',
-  },
-  syntax: {
-    plain: '#cdd6f4',
-    comment: { color: '#6c7086', fontStyle: 'italic' as const },
-    keyword: '#cba6f7',
-    tag: '#f38ba8',
-    punctuation: '#9399b2',
-    definition: '#89b4fa',
-    property: '#89dceb',
-    static: '#fab387',
-    string: '#a6e3a1',
-  },
-  font: {
-    body: 'system-ui, -apple-system, sans-serif',
-    mono: '"JetBrains Mono", "Fira Code", monospace',
-    size: '13px',
-    lineHeight: '1.6',
-  },
+// Custom error screen component
+function ErrorOverlay({ onReset }: { onReset?: () => void }) {
+  const { sandpack } = useSandpack()
+  const error = sandpack.error
+  
+  if (!error) return null
+  
+  return (
+    <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-6 z-10">
+      <div className="max-w-md w-full bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-red-500/20 rounded-lg">
+            <AlertTriangle className="w-6 h-6 text-red-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Preview Error</h3>
+        </div>
+        
+        <div className="bg-gray-900 rounded-lg p-4 mb-4 max-h-40 overflow-auto">
+          <code className="text-sm text-red-300 whitespace-pre-wrap break-words">
+            {error.message || 'An error occurred while rendering the preview'}
+          </code>
+        </div>
+        
+        <p className="text-gray-400 text-sm mb-4">
+          The AI will automatically try to fix this error. You can also reset to the default template.
+        </p>
+        
+        {onReset && (
+          <Button 
+            onClick={onReset}
+            variant="outline" 
+            className="w-full"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Reset Files
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Wrapper component that includes error handling
+function PreviewWithErrorHandling({ onReset }: { onReset?: () => void }) {
+  return (
+    <div className="relative h-full">
+      <ErrorOverlay onReset={onReset} />
+      <SandpackPreview 
+        showNavigator={false}
+        showRefreshButton={false}
+        showOpenInCodeSandbox={false}
+        style={{ height: '100%', minHeight: '400px' }}
+      />
+    </div>
+  )
 }
 
 // Composant Preview principal
-export function Preview({ files, appType, showCode = false, className }: PreviewProps) {
-  // Normalize TypeScript files to JS for Sandpack
+export function Preview({ files, appType, showCode = false, className, onResetFiles }: PreviewProps) {
+  // Normalize TypeScript files to JS for Sandpack AND clean imports
   const normalizedFiles = normalizeFilesForSandpack(files)
   
-  // Merge with default files for the type
+  // Merge with default files for the type (normalized files override defaults)
   const defaultFiles = DEFAULT_FILES[appType] || DEFAULT_FILES.WEB
   const mergedFiles = { ...defaultFiles, ...normalizedFiles }
 
   // Common Sandpack setup with Tailwind CSS via CDN
   const sandpackSetup = {
     dependencies: {},
-    // Load Tailwind CSS via CDN - no npm install needed
-    externalResources: [
-      'https://cdn.tailwindcss.com',
-    ],
   }
 
   // Rendu du preview selon le type
@@ -299,10 +330,10 @@ export function Preview({ files, appType, showCode = false, className }: Preview
         <SandpackProvider
           template="react"
           files={mergedFiles}
-          theme={darkTheme}
+          theme="dark"
           customSetup={sandpackSetup}
           options={{
-            externalResources: sandpackSetup.externalResources,
+            externalResources: ['https://cdn.tailwindcss.com'],
           }}
         >
           <SandpackLayout>
@@ -311,10 +342,7 @@ export function Preview({ files, appType, showCode = false, className }: Preview
               showLineNumbers 
               style={{ height: '100%', minHeight: '400px' }}
             />
-            <SandpackPreview 
-              showNavigator={false}
-              style={{ height: '100%', minHeight: '400px' }}
-            />
+            <PreviewWithErrorHandling onReset={onResetFiles} />
           </SandpackLayout>
         </SandpackProvider>
       )
@@ -324,17 +352,13 @@ export function Preview({ files, appType, showCode = false, className }: Preview
       <SandpackProvider
         template="react"
         files={mergedFiles}
-        theme={darkTheme}
+        theme="dark"
         customSetup={sandpackSetup}
         options={{
-          externalResources: sandpackSetup.externalResources,
+          externalResources: ['https://cdn.tailwindcss.com'],
         }}
       >
-        <SandpackPreview 
-          showNavigator={false}
-          showRefreshButton={false}
-          style={{ height: '100%', minHeight: '400px' }}
-        />
+        <PreviewWithErrorHandling onReset={onResetFiles} />
       </SandpackProvider>
     )
   }

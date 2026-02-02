@@ -310,6 +310,19 @@ export default function AppEditorPage() {
     })
   }, [appId])
 
+  // Reset files to default template
+  const handleResetFiles = useCallback(() => {
+    const defaultFiles = DEFAULT_FILES[appType] || DEFAULT_FILES.WEB
+    setFiles(defaultFiles)
+    
+    // Save to API
+    fetch(`/api/apps/${appId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: defaultFiles }),
+    }).catch(err => console.error('Failed to reset files:', err))
+  }, [appId, appType])
+
   // Preview component (used in both modes)
   const previewComponent = (
     <Preview 
@@ -317,6 +330,7 @@ export default function AppEditorPage() {
       files={files}
       appType={appType}
       showCode={false}
+      onResetFiles={handleResetFiles}
     />
   )
 
