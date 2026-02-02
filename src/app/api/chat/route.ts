@@ -714,16 +714,25 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
   while (continueLoop && roundCount < MAX_TOOL_ROUNDS) {
     roundCount++
 
-    const response = await openai.chat.completions.create({
-      model: apiModelName,
-      messages: conversationMessages,
-      tools,
-      tool_choice: enableTools ? 'auto' : undefined,
-      stream: true,
-      stream_options: { include_usage: true },
-      temperature: 0.7,
-      max_tokens: 4096,
-    })
+    let response;
+    try {
+      console.log('[OpenAI] Creating chat completion...')
+      response = await openai.chat.completions.create({
+        model: apiModelName,
+        messages: conversationMessages,
+        tools,
+        tool_choice: enableTools ? 'auto' : undefined,
+        stream: true,
+        stream_options: { include_usage: true },
+        temperature: 0.7,
+        max_tokens: 4096,
+      })
+      console.log('[OpenAI] Stream created successfully')
+    } catch (openaiError) {
+      console.error('[OpenAI] Error creating completion:', openaiError)
+      const errMsg = openaiError instanceof Error ? openaiError.message : String(openaiError)
+      throw new Error(`OpenAI API error: ${errMsg}`)
+    }
 
     let assistantContent = ''
     let toolCalls: OpenAI.ChatCompletionMessageToolCall[] = []
