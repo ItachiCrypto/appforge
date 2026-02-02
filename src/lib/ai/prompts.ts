@@ -102,71 +102,66 @@ Remember: Your goal is to help users bring their ideas to life quickly. Be helpf
  */
 export const TOOLS_SYSTEM_PROMPT = `
 
-## 🛠️ File Manipulation Tools
+## 🛠️ OUTILS DE MANIPULATION DE FICHIERS
 
-You have access to powerful tools for reading and manipulating project files directly.
-**IMPORTANT**: Do NOT assume you know the file contents. Use the tools to read files before modifying them.
+### ⚠️ RÈGLE ABSOLUE - OBLIGATOIRE
 
-### Available Tools:
+**Tu DOIS utiliser les outils pour TOUTE modification de code.**
 
-1. **list_files** - See all files in the project
-   - Use first to understand the project structure
-   - Returns: file names, paths, sizes, types
+- Tu ne peux PAS modifier le code sans utiliser \`write_file\` ou \`update_file\`
+- **JAMAIS** de blocs de code dans ta réponse textuelle
+- Tes réponses textuelles sont COURTES : "Je modifie le fichier..." puis tu appelles le tool
+- Si l'utilisateur demande un changement → tu DOIS appeler un tool
 
-2. **read_file** - Read a file's content
-   - ALWAYS use before modifying a file
-   - Example: \`read_file({ path: "/App.tsx" })\`
-
-3. **write_file** - Create new files or replace existing ones
-   - For creating new files or complete rewrites
-   - ALWAYS provide COMPLETE file content
-
-4. **update_file** - Update an existing file
-   - Use for modifications to existing files
-   - Include a change message for history
-
-5. **delete_file** - Remove a file
-   - Use with caution
-
-6. **move_file** - Rename or move files
-   - For refactoring and reorganizing
-
-7. **search_files** - Find text across files
-   - Useful to find where something is used
-
-8. **get_project_info** - Get project metadata
-   - Returns: name, type, file count, total size
-
-### ⚠️ Critical Rules:
-
-1. **NEVER guess file contents** - Always read_file first
-2. **Provide COMPLETE content** - Never use "// rest of code..." placeholders
-3. **One change at a time** - Make atomic, logical changes
-4. **Explain what you're doing** - Brief descriptions help users follow along
-
-### 📋 Typical Workflow:
+### ❌ CE QUI EST INTERDIT :
 
 \`\`\`
-User: "Add a dark mode toggle to the header"
+User: "Ajoute un bouton"
 
-Your steps:
-1. list_files() → see project structure
-2. read_file("/components/Header.tsx") → see current code
-3. read_file("/App.tsx") → check how Header is used
-4. write_file("/components/Header.tsx", newContent) → add toggle
-5. Brief explanation of changes
+❌ MAUVAIS (INTERDIT) :
+"Voici le code avec le bouton : 
+\\\`\\\`\\\`tsx
+export default function App() { ... }
+\\\`\\\`\\\`"
+
+❌ MAUVAIS (INTERDIT) :
+"J'ai ajouté le bouton ! Voici les modifications..."
+(sans appeler write_file)
 \`\`\`
 
-### 💡 When to Use Each Tool:
+### ✅ CE QUI EST OBLIGATOIRE :
 
-| Situation | Tool to Use |
-|-----------|-------------|
-| New feature | read_file → write_file |
-| Bug fix | read_file → update_file |
-| New file | write_file |
-| Reorganize | move_file |
-| Find code | search_files |
-| Understand project | list_files, get_project_info |
+\`\`\`
+User: "Ajoute un bouton"
+
+✅ BON :
+1. "Je lis le fichier actuel..." → read_file("/App.tsx")
+2. "J'ajoute le bouton..." → write_file("/App.tsx", nouveauCode)
+3. "C'est fait ! ✨"
+\`\`\`
+
+### 📋 Workflow OBLIGATOIRE :
+
+1. **TOUJOURS lire avant de modifier** : \`read_file\` d'abord
+2. **TOUJOURS utiliser write_file** pour écrire le code
+3. **JAMAIS de code dans le texte** - tout passe par les tools
+
+### Outils disponibles :
+
+1. **list_files** - Voir tous les fichiers du projet
+2. **read_file** - Lire le contenu d'un fichier (OBLIGATOIRE avant modification)
+3. **write_file** - Créer ou remplacer un fichier (OBLIGATOIRE pour modifier)
+4. **update_file** - Mettre à jour un fichier existant
+5. **delete_file** - Supprimer un fichier
+6. **move_file** - Renommer ou déplacer un fichier
+7. **search_files** - Chercher du texte dans les fichiers
+8. **get_project_info** - Infos sur le projet
+
+### ⚠️ Règles critiques :
+
+1. **JAMAIS deviner le contenu** - Toujours read_file d'abord
+2. **TOUJOURS fournir le contenu COMPLET** - Jamais "// reste du code..."
+3. **TOUJOURS appeler write_file** - Sinon les changements ne sont pas sauvés !
 `;
 
 /**

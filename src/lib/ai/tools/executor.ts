@@ -394,15 +394,29 @@ async function executeToolForLegacyApp(
     }
 
     case 'write_file': {
-      const path = call.arguments.path as string;
-      const content = call.arguments.content as string;
-      if (!path || content === undefined) {
+      // FIX BUG #11: Validate types before casting
+      const rawPath = call.arguments.path
+      const rawContent = call.arguments.content
+      
+      if (typeof rawPath !== 'string' || !rawPath.trim()) {
         return {
           toolCallId: call.id,
           success: false,
-          error: 'Missing required parameters: path and content',
+          error: `Invalid path: expected non-empty string, got ${typeof rawPath} (value: ${JSON.stringify(rawPath)?.substring(0, 100)})`,
         };
       }
+      
+      if (typeof rawContent !== 'string') {
+        return {
+          toolCallId: call.id,
+          success: false,
+          error: `Invalid content: expected string, got ${typeof rawContent}`,
+        };
+      }
+      
+      const path = rawPath.trim()
+      const content = rawContent
+      
       const result = await legacyAdapter.writeFile(appId, path, content);
       return {
         toolCallId: call.id,
@@ -524,15 +538,20 @@ async function executeToolForLegacyApp(
 }
 
 /**
- * Execute multiple tool calls in parallel
+ * Execute multiple tool calls SEQUENTIALLY
+ * FIX BUG #10: Sequential execution prevents race conditions when multiple
+ * write_file calls happen in parallel (each reads DB, modifies, writes back)
  */
 export async function executeTools(
   calls: ToolCall[],
   context: ToolContext
 ): Promise<ToolResult[]> {
-  return Promise.all(
-    calls.map(call => executeTool(call, context))
-  );
+  const results: ToolResult[] = []
+  for (const call of calls) {
+    const result = await executeTool(call, context)
+    results.push(result)
+  }
+  return results
 }
 
 /**

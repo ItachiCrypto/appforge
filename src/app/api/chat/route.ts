@@ -496,8 +496,11 @@ async function streamAnthropicWithTools(options: StreamOptions) {
 
     for await (const event of response) {
       // Handle content_block_start - initialize block tracking
+      // FIX BUG #8: ALWAYS reset both variables when starting a new block
       if (event.type === 'content_block_start') {
         currentBlockIndex = event.index
+        currentTextContent = ''  // Reset
+        currentToolUse = null    // Reset
         
         if (event.content_block.type === 'text') {
           currentTextContent = event.content_block.text || ''
@@ -533,20 +536,33 @@ async function streamAnthropicWithTools(options: StreamOptions) {
         
         if (currentToolUse) {
           let parsedInput = {}
+          let parseSuccess = true
           try {
             if (currentToolUse.inputJson) {
               parsedInput = JSON.parse(currentToolUse.inputJson)
             }
           } catch (e) {
-            console.error('[Anthropic] Failed to parse tool input JSON:', e)
+            console.error('[Anthropic] Failed to parse tool input JSON:', e, 
+              'Raw JSON:', currentToolUse.inputJson?.substring(0, 500))
+            parseSuccess = false
           }
           
-          contentBlocks.set(currentBlockIndex, {
-            type: 'tool_use',
-            id: currentToolUse.id,
-            name: currentToolUse.name,
-            input: parsedInput
-          } as Anthropic.ToolUseBlock)
+          // FIX BUG #9: Only add tool block if JSON was parsed successfully AND has content
+          if (parseSuccess && Object.keys(parsedInput).length > 0) {
+            contentBlocks.set(currentBlockIndex, {
+              type: 'tool_use',
+              id: currentToolUse.id,
+              name: currentToolUse.name,
+              input: parsedInput
+            } as Anthropic.ToolUseBlock)
+          } else {
+            console.error('[Anthropic] Skipping malformed tool_use block:', {
+              id: currentToolUse.id,
+              name: currentToolUse.name,
+              parseSuccess,
+              inputLength: currentToolUse.inputJson?.length || 0
+            })
+          }
           
           currentToolUse = null
         }
