@@ -266,6 +266,48 @@ export const TEMPLATES_BY_TYPE: Record<AppTypeId, Array<{
   prompt: string
 }>> = {
   WEB: [
+    // === FLAGSHIP CLONES - Économisez des centaines d'euros/an! ===
+    {
+      id: 'notemaster',
+      name: '📝 NoteMaster',
+      description: 'Clone de Notion - Économisez 96€/an',
+      prompt: 'TEMPLATE_FILE:notemaster',
+      isClone: true,
+      savings: 96,
+    },
+    {
+      id: 'moneytracker',
+      name: '💎 MoneyTracker',
+      description: 'Clone de Finary - Économisez 100€/an',
+      prompt: 'TEMPLATE_FILE:moneytracker',
+      isClone: true,
+      savings: 100,
+    },
+    {
+      id: 'taskflow',
+      name: '✅ TaskFlow',
+      description: 'Clone de Todoist - Économisez 48€/an',
+      prompt: 'TEMPLATE_FILE:taskflow',
+      isClone: true,
+      savings: 48,
+    },
+    {
+      id: 'meetbook',
+      name: '📅 MeetBook',
+      description: 'Clone de Calendly - Économisez 144€/an',
+      prompt: 'TEMPLATE_FILE:meetbook',
+      isClone: true,
+      savings: 144,
+    },
+    {
+      id: 'habitforge',
+      name: '🔥 HabitForge',
+      description: 'Clone Habit Tracker - Économisez 60€/an',
+      prompt: 'TEMPLATE_FILE:habitforge',
+      isClone: true,
+      savings: 60,
+    },
+    // === TEMPLATES CLASSIQUES ===
     {
       id: 'landing',
       name: 'Landing Page',
