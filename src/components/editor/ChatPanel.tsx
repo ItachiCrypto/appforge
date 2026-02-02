@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, Loader2, Sparkles } from 'lucide-react'
+import { Send, Loader2, Sparkles, Hammer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface Message {
@@ -62,10 +62,10 @@ export function ChatPanel({
                 compact ? "w-8 h-8" : "w-10 h-10"
               )} />
               <p className={cn("font-medium", compact && "text-sm")}>
-                Start a conversation
+                Décris ton app
               </p>
               <p className={cn("text-sm", compact && "text-xs")}>
-                Describe what you want to build
+                Je la construis pour toi ✨
               </p>
             </div>
           )}
@@ -108,12 +108,13 @@ export function ChatPanel({
                   {message.content}
                 </p>
                 {message.codeOutput && (
-                  <p className={cn(
-                    "mt-1 opacity-70",
+                  <div className={cn(
+                    "mt-2 flex items-center gap-1.5 text-green-600 dark:text-green-400",
                     compact ? "text-[10px]" : "text-xs"
                   )}>
-                    ✨ Code updated!
-                  </p>
+                    <Sparkles className="w-3 h-3" />
+                    <span>Code mis à jour !</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -126,11 +127,19 @@ export function ChatPanel({
                   <Sparkles className="w-3 h-3" />
                 </AvatarFallback>
               </Avatar>
-              <div className="bg-muted rounded-lg px-3 py-2">
-                <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="bg-muted rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Hammer className={cn(
+                    "text-primary",
+                    compact ? "w-4 h-4" : "w-5 h-5",
+                    "animate-bounce"
+                  )} />
+                  <span className={cn(
+                    "text-muted-foreground",
+                    compact ? "text-xs" : "text-sm"
+                  )}>
+                    Je construis...
+                  </span>
                 </div>
               </div>
             </div>
@@ -144,7 +153,7 @@ export function ChatPanel({
       <div className={cn("border-t shrink-0", compact ? "p-2" : "p-3")}>
         <div className="flex gap-2">
           <Input
-            placeholder={compact ? "Type a message..." : "Describe what you want to change..."}
+            placeholder="Décris ce que tu veux..."
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
