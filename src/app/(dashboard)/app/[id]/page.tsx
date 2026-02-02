@@ -23,6 +23,16 @@ import {
 } from '@/components/editor'
 import { formatCurrency, SAAS_APPS } from '@/lib/saas-data'
 
+// Type for tool call tracking (BUG FIX #1 & #4)
+export interface ToolCallState {
+  id: string
+  name: string
+  status: 'running' | 'success' | 'error'
+  arguments?: Record<string, unknown>
+  result?: string
+  error?: string
+}
+
 // Helper to provide actionable guidance for common errors
 function getErrorActionHint(errorMessage: string): string | null {
   const lowerError = errorMessage.toLowerCase()
@@ -79,6 +89,18 @@ export default function AppEditorPage() {
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [isDeploying, setIsDeploying] = useState(false)
   
+  // BUG FIX #4: Tool call tracking for visual feedback
+  const [toolCalls, setToolCalls] = useState<ToolCallState[]>([])
+  
+  // BUG FIX #3: Preview version counter for reliable refresh
+  const [previewVersion, setPreviewVersion] = useState(0)
+  
+  // BUG FIX #5: Track app loading state to prevent race condition
+  const [isAppLoaded, setIsAppLoaded] = useState(false)
+  
+  // BUG FIX #6: Debounce timer ref for file saving
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  
   // Métadonnées pour les économies
   const [appMetadata, setAppMetadata] = useState<{
     replacedSaas?: string
@@ -132,19 +154,22 @@ export default function AppEditorPage() {
         }
       } catch (error) {
         console.error('Failed to load app:', error)
+      } finally {
+        // BUG FIX #5: Mark app as loaded
+        setIsAppLoaded(true)
       }
     }
     
     loadApp()
   }, [appId])
 
-  // Handle initial prompt
+  // BUG FIX #5: Handle initial prompt only after app is loaded
   useEffect(() => {
-    if (initialPrompt && !hasInitialized.current) {
+    if (initialPrompt && !hasInitialized.current && isAppLoaded) {
       hasInitialized.current = true
-      handleSend(initialPrompt)
+      void handleSend(initialPrompt)
     }
-  }, [initialPrompt])
+  }, [initialPrompt, isAppLoaded])
 
   const handleSend = async (text?: string) => {
     const messageText = text || input
@@ -159,6 +184,9 @@ export default function AppEditorPage() {
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
+    
+    // BUG FIX #4: Reset tool calls at start of new message
+    setToolCalls([])
 
     // Create placeholder for streaming response
     const assistantId = (Date.now() + 1).toString()
@@ -167,6 +195,9 @@ export default function AppEditorPage() {
       role: 'assistant',
       content: '',
     }])
+
+    // BUG FIX #2: Track if tools were used for file sync
+    let toolsWereUsed = false
 
     try {
       const res = await fetch('/api/chat', {
@@ -235,6 +266,27 @@ export default function AppEditorPage() {
                   setMessages(prev => prev.map(m => 
                     m.id === assistantId ? { ...m, content: fullContent } : m
                   ))
+                } else if (data.type === 'tool_call') {
+                  // BUG FIX #1: Handle tool_call events
+                  toolsWereUsed = true
+                  setToolCalls(prev => [...prev, {
+                    id: data.id || `tool-${Date.now()}`,
+                    name: data.name,
+                    status: 'running',
+                    arguments: data.arguments,
+                  }])
+                } else if (data.type === 'tool_result') {
+                  // BUG FIX #1: Handle tool_result events
+                  setToolCalls(prev => prev.map(tc =>
+                    tc.id === data.toolCallId 
+                      ? { 
+                          ...tc, 
+                          status: data.success ? 'success' : 'error', 
+                          result: data.output, 
+                          error: data.error 
+                        }
+                      : tc
+                  ))
                 } else if (data.type === 'done') {
                   codeOutput = data.codeOutput
                   setMessages(prev => prev.map(m => 
@@ -276,6 +328,24 @@ export default function AppEditorPage() {
           
           return updated
         })
+        
+        // BUG FIX #3: Increment preview version for reliable refresh
+        setPreviewVersion(v => v + 1)
+      } else if (toolsWereUsed) {
+        // BUG FIX #2: Force refresh files from API if tools were used but no codeOutput
+        try {
+          const appRes = await fetch(`/api/apps/${appId}`)
+          if (appRes.ok) {
+            const app = await appRes.json()
+            if (app.files && Object.keys(app.files).length > 0) {
+              setFiles(normalizeFilesForSandpack(app.files))
+              // BUG FIX #3: Increment preview version
+              setPreviewVersion(v => v + 1)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to refresh files after tool use:', err)
+        }
       }
     } catch (error) {
       console.error('Chat error:', error)
@@ -293,6 +363,8 @@ export default function AppEditorPage() {
       ))
     } finally {
       setIsLoading(false)
+      // BUG FIX #4: Clear tool calls when done
+      setToolCalls([])
     }
   }
 
@@ -317,26 +389,48 @@ export default function AppEditorPage() {
     }
   }
 
-  // Handle file changes from code editor
+  // BUG FIX #6: Handle file changes with debounce
   const handleFileChange = useCallback((path: string, content: string) => {
     setFiles(prev => {
       const updated = { ...prev, [path]: content }
       
-      // Debounced save to API
-      fetch(`/api/apps/${appId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: updated }),
-      }).catch(err => console.error('Failed to save files:', err))
+      // Clear existing timer
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+      }
+      
+      // Debounce save to API (1 second delay)
+      saveTimerRef.current = setTimeout(() => {
+        fetch(`/api/apps/${appId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: updated }),
+        }).catch(err => console.error('Failed to save files:', err))
+      }, 1000)
       
       return updated
     })
+    
+    // BUG FIX #3: Update preview version when files change manually
+    setPreviewVersion(v => v + 1)
   }, [appId])
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+      }
+    }
+  }, [])
 
   // Reset files to default template
   const handleResetFiles = useCallback(() => {
     const defaultFiles = DEFAULT_FILES[appType] || DEFAULT_FILES.WEB
     setFiles(defaultFiles)
+    
+    // BUG FIX #3: Update preview version
+    setPreviewVersion(v => v + 1)
     
     // Save to API
     fetch(`/api/apps/${appId}`, {
@@ -349,10 +443,10 @@ export default function AppEditorPage() {
   // Calcul des économies
   const yearlySavings = appMetadata?.monthlySavings ? appMetadata.monthlySavings * 12 : 0
 
-  // Preview component (used in both modes)
+  // BUG FIX #3: Preview component with version-based key for reliable refresh
   const previewComponent = (
     <Preview 
-      key={JSON.stringify(files)}
+      key={`preview-${previewVersion}`}
       files={files}
       appType={appType}
       showCode={false}
@@ -360,12 +454,13 @@ export default function AppEditorPage() {
     />
   )
 
-  // Chat component (used in both modes)
+  // BUG FIX #4: Chat component with tool calls for visual feedback
   const chatComponent = (
     <ChatPanel
       messages={messages}
       input={input}
       isLoading={isLoading}
+      toolCalls={toolCalls}
       onInputChange={setInput}
       onSend={() => handleSend()}
       compact={mode === 'expert'}

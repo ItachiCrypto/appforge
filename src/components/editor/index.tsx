@@ -11,7 +11,7 @@ export { FileTabs } from './FileTabs'
 export { CodeEditor } from './CodeEditor'
 
 // Chat
-export { ChatPanel, type Message } from './ChatPanel'
+export { ChatPanel, type Message, type ToolCallState } from './ChatPanel'
 
 // Layouts
 export { ExpertLayout } from './ExpertLayout'

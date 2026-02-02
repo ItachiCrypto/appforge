@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, Loader2, Sparkles, Hammer } from 'lucide-react'
+import { Send, Loader2, Sparkles, Hammer, Check, X, FileText, FileEdit } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface Message {
@@ -16,20 +16,58 @@ export interface Message {
   codeOutput?: { files: Record<string, string> }
 }
 
+// BUG FIX #4: Tool call state interface
+export interface ToolCallState {
+  id: string
+  name: string
+  status: 'running' | 'success' | 'error'
+  arguments?: Record<string, unknown>
+  result?: string
+  error?: string
+}
+
 interface ChatPanelProps {
   messages: Message[]
   input: string
   isLoading: boolean
+  toolCalls?: ToolCallState[]  // BUG FIX #4: Add tool calls prop
   onInputChange: (value: string) => void
   onSend: () => void
   className?: string
   compact?: boolean
 }
 
+// Helper to get icon for tool name
+function getToolIcon(toolName: string) {
+  switch (toolName) {
+    case 'read_file':
+      return FileText
+    case 'write_file':
+      return FileEdit
+    default:
+      return Hammer
+  }
+}
+
+// Helper to get display name for tool
+function getToolDisplayName(toolName: string): string {
+  switch (toolName) {
+    case 'read_file':
+      return 'Lecture'
+    case 'write_file':
+      return 'Écriture'
+    case 'list_files':
+      return 'Liste fichiers'
+    default:
+      return toolName
+  }
+}
+
 export function ChatPanel({
   messages,
   input,
   isLoading,
+  toolCalls = [],  // BUG FIX #4: Default to empty array
   onInputChange,
   onSend,
   className,
@@ -41,7 +79,7 @@ export function ChatPanel({
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, toolCalls])  // Also scroll when tool calls change
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -120,6 +158,7 @@ export function ChatPanel({
             </div>
           ))}
           
+          {/* BUG FIX #4: Enhanced loading state with tool call feedback */}
           {isLoading && (
             <div className="flex gap-2">
               <Avatar className={cn(compact ? "w-6 h-6" : "w-7 h-7")}>
@@ -127,20 +166,83 @@ export function ChatPanel({
                   <Sparkles className="w-3 h-3" />
                 </AvatarFallback>
               </Avatar>
-              <div className="bg-muted rounded-lg px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Hammer className={cn(
-                    "text-primary",
-                    compact ? "w-4 h-4" : "w-5 h-5",
-                    "animate-bounce"
-                  )} />
-                  <span className={cn(
-                    "text-muted-foreground",
-                    compact ? "text-xs" : "text-sm"
-                  )}>
-                    Je construis...
-                  </span>
-                </div>
+              <div className="bg-muted rounded-lg px-4 py-3 min-w-[200px]">
+                {toolCalls.length > 0 ? (
+                  // Show tool call progress
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Hammer className={cn(
+                        "text-primary animate-bounce",
+                        compact ? "w-4 h-4" : "w-5 h-5"
+                      )} />
+                      <span className={cn(
+                        "text-muted-foreground font-medium",
+                        compact ? "text-xs" : "text-sm"
+                      )}>
+                        Construction en cours...
+                      </span>
+                    </div>
+                    {toolCalls.map(tc => {
+                      const ToolIcon = getToolIcon(tc.name)
+                      const filePath = (tc.arguments as { path?: string })?.path
+                      
+                      return (
+                        <div 
+                          key={tc.id} 
+                          className={cn(
+                            "flex items-center gap-2 pl-2 border-l-2",
+                            tc.status === 'running' && "border-primary/50",
+                            tc.status === 'success' && "border-green-500",
+                            tc.status === 'error' && "border-red-500"
+                          )}
+                        >
+                          {tc.status === 'running' ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                          ) : tc.status === 'success' ? (
+                            <Check className="w-3 h-3 text-green-500" />
+                          ) : (
+                            <X className="w-3 h-3 text-red-500" />
+                          )}
+                          <ToolIcon className={cn(
+                            "w-3 h-3",
+                            tc.status === 'running' && "text-primary",
+                            tc.status === 'success' && "text-green-500",
+                            tc.status === 'error' && "text-red-500"
+                          )} />
+                          <span className={cn(
+                            "font-mono",
+                            compact ? "text-[10px]" : "text-xs"
+                          )}>
+                            {getToolDisplayName(tc.name)}
+                          </span>
+                          {filePath && (
+                            <span className={cn(
+                              "text-muted-foreground truncate max-w-[120px]",
+                              compact ? "text-[10px]" : "text-xs"
+                            )}>
+                              → {filePath.split('/').pop()}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  // Default loading state
+                  <div className="flex items-center gap-2">
+                    <Hammer className={cn(
+                      "text-primary",
+                      compact ? "w-4 h-4" : "w-5 h-5",
+                      "animate-bounce"
+                    )} />
+                    <span className={cn(
+                      "text-muted-foreground",
+                      compact ? "text-xs" : "text-sm"
+                    )}>
+                      Je construis...
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
