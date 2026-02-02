@@ -323,9 +323,9 @@ export async function POST(req: NextRequest) {
           // Parse code from text OR fetch from DB if tools were used
           let codeOutput = parseCodeBlocks(fullContent)
           
-          // If tools were used, files may have been written directly to DB
-          // Fetch the latest files to send back to the frontend
-          if (!codeOutput && toolsEnabled && appId) {
+          // FIX BUG #3: ALWAYS fetch files from DB when tools are enabled
+          // Tools may have written files directly to DB, regardless of what parseCodeBlocks found
+          if (toolsEnabled && appId) {
             const updatedApp = await prisma.app.findUnique({
               where: { id: appId },
               select: { files: true },
@@ -339,6 +339,7 @@ export async function POST(req: NextRequest) {
               ) || Object.keys(dbFiles).length !== Object.keys(originalFiles).length
               
               if (hasChanges) {
+                // DB files take priority over parseCodeBlocks when tools are used
                 codeOutput = { files: dbFiles }
               }
             }
@@ -465,6 +466,12 @@ async function streamAnthropicWithTools(options: StreamOptions) {
   while (continueLoop && roundCount < MAX_TOOL_ROUNDS) {
     roundCount++
     
+    // ============ FIX BUG #1 & #2: Accumulate content blocks manually ============
+    const contentBlocks: Map<number, Anthropic.ContentBlock> = new Map()
+    let currentBlockIndex = -1
+    let currentTextContent = ''
+    let currentToolUse: { id: string; name: string; inputJson: string } | null = null
+    
     const response = await anthropic.messages.create({
       model: apiModelName,
       max_tokens: 4096,
@@ -474,22 +481,67 @@ async function streamAnthropicWithTools(options: StreamOptions) {
       stream: true,
     })
 
-    let assistantContent: Anthropic.ContentBlock[] = []
     let stopReason: string | null = null
 
     for await (const event of response) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        const text = event.delta.text
-        onContent(text)
-        send('chunk', { content: text })
+      // Handle content_block_start - initialize block tracking
+      if (event.type === 'content_block_start') {
+        currentBlockIndex = event.index
+        
+        if (event.content_block.type === 'text') {
+          currentTextContent = event.content_block.text || ''
+        } else if (event.content_block.type === 'tool_use') {
+          currentToolUse = {
+            id: event.content_block.id,
+            name: event.content_block.name,
+            inputJson: ''
+          }
+        }
       }
       
-      if (event.type === 'content_block_stop') {
-        // Access the current message from the stream
-        const message = (response as any).currentMessage as Anthropic.Message | undefined
-        if (message && message.content[event.index]) {
-          assistantContent.push(message.content[event.index])
+      // Handle content_block_delta - accumulate content
+      if (event.type === 'content_block_delta') {
+        if (event.delta.type === 'text_delta') {
+          currentTextContent += event.delta.text
+          onContent(event.delta.text)
+          send('chunk', { content: event.delta.text })
+        } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
+          // FIX BUG #2: Accumulate tool input JSON fragments
+          currentToolUse.inputJson += event.delta.partial_json
         }
+      }
+      
+      // Handle content_block_stop - finalize the block
+      if (event.type === 'content_block_stop') {
+        if (currentTextContent && currentBlockIndex >= 0) {
+          contentBlocks.set(currentBlockIndex, {
+            type: 'text',
+            text: currentTextContent
+          } as Anthropic.TextBlock)
+        }
+        
+        if (currentToolUse) {
+          let parsedInput = {}
+          try {
+            if (currentToolUse.inputJson) {
+              parsedInput = JSON.parse(currentToolUse.inputJson)
+            }
+          } catch (e) {
+            console.error('[Anthropic] Failed to parse tool input JSON:', e)
+          }
+          
+          contentBlocks.set(currentBlockIndex, {
+            type: 'tool_use',
+            id: currentToolUse.id,
+            name: currentToolUse.name,
+            input: parsedInput
+          } as Anthropic.ToolUseBlock)
+          
+          currentToolUse = null
+        }
+        
+        currentTextContent = ''
+        currentBlockIndex = -1
       }
       
       if (event.type === 'message_delta') {
@@ -505,11 +557,10 @@ async function streamAnthropicWithTools(options: StreamOptions) {
       }
     }
 
-    // Reconstruct content blocks from stream if needed
-    const finalMessage = (response as any).finalMessage as Anthropic.Message | undefined
-    if (finalMessage?.content) {
-      assistantContent = finalMessage.content
-    }
+    // Build assistantContent from accumulated blocks (sorted by index)
+    const assistantContent = Array.from(contentBlocks.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([_, block]) => block)
 
     // Add assistant message to conversation
     if (assistantContent.length > 0) {
