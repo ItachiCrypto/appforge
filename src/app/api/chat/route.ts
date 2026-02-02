@@ -320,8 +320,30 @@ export async function POST(req: NextRequest) {
             })
           }
 
-          // Parse code and calculate credits
-          const codeOutput = parseCodeBlocks(fullContent)
+          // Parse code from text OR fetch from DB if tools were used
+          let codeOutput = parseCodeBlocks(fullContent)
+          
+          // If tools were used, files may have been written directly to DB
+          // Fetch the latest files to send back to the frontend
+          if (!codeOutput && toolsEnabled && appId) {
+            const updatedApp = await prisma.app.findUnique({
+              where: { id: appId },
+              select: { files: true },
+            })
+            if (updatedApp?.files && typeof updatedApp.files === 'object') {
+              const dbFiles = updatedApp.files as Record<string, string>
+              // Check if files changed compared to original
+              const originalFiles = codeFiles as Record<string, string>
+              const hasChanges = Object.keys(dbFiles).some(key => 
+                dbFiles[key] !== originalFiles[key]
+              ) || Object.keys(dbFiles).length !== Object.keys(originalFiles).length
+              
+              if (hasChanges) {
+                codeOutput = { files: dbFiles }
+              }
+            }
+          }
+          
           const creditsUsed = useBYOK ? 0 : calculateCreditCost(modelKey, inputTokens || 1000, outputTokens || 1000)
 
           // Deduct credits
@@ -341,16 +363,16 @@ export async function POST(req: NextRequest) {
             await prisma.message.create({
               data: {
                 role: 'ASSISTANT',
-                content: fullContent.replace(/```[\s\S]*?```/g, '').trim() || 'Code generated.',
+                content: fullContent.replace(/```[\s\S]*?```/g, '').trim() || 'Code généré ✨',
                 codeOutput: codeOutput || undefined,
                 conversationId: app.conversationId,
               },
             })
+            // Update status if code was generated
             if (codeOutput?.files) {
               await prisma.app.update({
                 where: { id: appId },
                 data: {
-                  files: { ...(app.files as object), ...codeOutput.files },
                   status: 'PREVIEW',
                 },
               })
