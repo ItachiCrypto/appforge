@@ -213,6 +213,9 @@ export default function AppEditorPage() {
     // BUG FIX #2: Track if tools were used for file sync
     let toolsWereUsed = false
 
+    // BUG FIX #12: Track tool names by ID for real-time file refresh
+    const toolNameById = new Map<string, string>()
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -288,8 +291,11 @@ export default function AppEditorPage() {
                   console.log('[Frontend] Tool call received:', data)
                   // BUG FIX #1: Handle tool_call events
                   toolsWereUsed = true
+                  const toolId = data.id || `tool-${Date.now()}`
+                  // BUG FIX #12: Store tool name for later lookup
+                  toolNameById.set(toolId, data.name)
                   setToolCalls(prev => [...prev, {
-                    id: data.id || `tool-${Date.now()}`,
+                    id: toolId,
                     name: data.name,
                     status: 'running',
                     arguments: data.arguments,
@@ -297,15 +303,31 @@ export default function AppEditorPage() {
                 } else if (data.type === 'tool_result') {
                   // BUG FIX #1: Handle tool_result events
                   setToolCalls(prev => prev.map(tc =>
-                    tc.id === data.toolCallId 
-                      ? { 
-                          ...tc, 
-                          status: data.success ? 'success' : 'error', 
-                          result: data.output, 
-                          error: data.error 
+                    tc.id === data.toolCallId
+                      ? {
+                          ...tc,
+                          status: data.success ? 'success' : 'error',
+                          result: data.output,
+                          error: data.error
                         }
                       : tc
                   ))
+
+                  // BUG FIX #12: Real-time file updates after write/update operations
+                  // Refresh files immediately when a file is created/updated
+                  const toolName = toolNameById.get(data.toolCallId)
+                  if (data.success && ['write_file', 'update_file', 'delete_file', 'move_file'].includes(toolName || '')) {
+                    // Fetch updated files from DB
+                    fetch(`/api/apps/${appId}`)
+                      .then(res => res.ok ? res.json() : null)
+                      .then(app => {
+                        if (app?.files && Object.keys(app.files).length > 0) {
+                          setFiles(normalizeFilesForSandpack(app.files))
+                          setPreviewVersion(v => v + 1)
+                        }
+                      })
+                      .catch(err => console.error('[tool_result] Failed to refresh files:', err))
+                  }
                 } else if (data.type === 'done') {
                   codeOutput = data.codeOutput
                   setMessages(prev => prev.map(m => 
@@ -581,6 +603,7 @@ export default function AppEditorPage() {
           />
         ) : (
           <NormalLayout
+            files={files}
             previewComponent={previewComponent}
             chatComponent={chatComponent}
           />

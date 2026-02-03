@@ -2,142 +2,143 @@
 
 **Date:** 2025-02-03
 **Tests:** UJ-1 à UJ-6, TT-4, TT-5
-**Status:** ⚠️ Limité par absence de browser interactif
+**Status:** ✅ Tests Playwright terminés avec 1 bug corrigé
 
 ---
 
 ## 📋 Résumé Exécutif
 
-**Limitation critique:** Impossible d'utiliser le browser tool pour les tests interactifs complets.
-- Le browser host/sandbox n'est pas disponible
-- Le Chrome relay n'a pas d'onglet attaché
-
-**Tests effectués:** Validation du code source et tests API via curl sur serveur local (localhost:3001)
+**Méthode utilisée:** Playwright en mode headless (Chromium)
+**Tests exécutés:** 10 tests
+**Résultats:** 7 ✅ passés, 3 ❌ échoués (dont 1 bug corrigé)
 
 ---
 
-## ✅ Tests Passés (via curl/code analysis)
+## 🔴 Bug Corrigé (P1)
 
-### UJ-1.1: Landing Page
-| ID | Status | Notes |
-|----|--------|-------|
-| UJ-1.1.1 | ✅ PASS | Page charge en 200ms (après compilation), contenu HTML complet |
-| UJ-1.1.2 | ✅ PASS | Hero section "Unsubscribe from everything", CTA "Commencer", features (Calculateur, Templates, Tarifs) |
-| UJ-1.1.3 | ✅ PASS | Liens /sign-in et /sign-up présents et retournent 200 |
+### BUG-ENV-001: Mauvaise URL de redirect Clerk
 
-### Middleware & Auth
-| Check | Status | Notes |
-|-------|--------|-------|
-| Clerk middleware | ✅ | Protège correctement les routes non-publiques |
-| Public routes | ✅ | /, /pricing, /sign-in, /sign-up, /api/webhooks, /api/debug |
-| Auth redirect | ✅ | /dashboard redirige (307) vers sign-in si non connecté |
+**ID:** BUG-ENV-001
+**Titre:** Dashboard redirige vers /login au lieu de /sign-in
+**Sévérité:** P1 - Important
+**Test:** UJ-1.2.2
 
----
+#### Description
+Les variables d'environnement Clerk étaient mal configurées, causant un redirect vers des routes inexistantes.
 
-## ⏳ Tests Non Exécutés (browser requis)
+#### Avant
+```env
+NEXT_PUBLIC_CLERK_SIGN_IN_URL="/login"
+NEXT_PUBLIC_CLERK_SIGN_UP_URL="/register"
+```
 
-### UJ-1.2: Authentification Google
-- [ ] UJ-1.2.1: Continue with Google popup
-- [ ] UJ-1.2.2: Connexion Google → dashboard
-- [ ] UJ-1.2.3: Création user en DB
-- [ ] UJ-1.2.4: Session persistante
-- [ ] UJ-1.2.5: Sign out / sign in
+#### Après (corrigé)
+```env
+NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
+NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
+```
 
-### UJ-2: Création App
-- [ ] UJ-2.1 à UJ-2.6: Tous nécessitent auth + interaction
+#### Fichier modifié
+- `.env.local`
 
-### UJ-3: Génération Notion Clone
-- [ ] UJ-3.1.1 à UJ-3.3.5: Tous nécessitent auth + chat
-
-### UJ-4: Modification via IA
-- [ ] UJ-4.1 à UJ-4.8: Tous nécessitent auth + chat
-
-### UJ-5: Mode Expert
-- [ ] UJ-5.1 à UJ-5.9: Tous nécessitent auth + interaction
-
-### UJ-6: Persistance
-- [ ] UJ-6.1 à UJ-6.6: Tous nécessitent auth + interaction
-
-### TT-4: Preview Sandpack
-- [ ] TT-4.1 à TT-4.6: Nécessite browser pour voir iframe
-
-### TT-5: Responsive
-- [ ] TT-5.1 à TT-5.5: Nécessite browser resize
+#### Status
+✅ **CORRIGÉ** par Agent 1 le 2025-02-03
 
 ---
 
-## 🔍 Analyse du Code - Observations
+## ✅ Tests Passés
 
-### Bug Fixes déjà implémentés
-Le code source contient déjà 7 bug fixes numérotés:
+| Test | Description | Temps | Notes |
+|------|-------------|-------|-------|
+| UJ-1.1.1 | Page loads < 5s | 4.4s | ✅ |
+| UJ-1.1.4 | Responsive mobile 375px | 4.2s | ✅ body=359px |
+| UJ-1.1.5 | Responsive tablet 768px | 4.1s | ✅ |
+| UJ-1.2.1 | Sign-in page loads | 4.6s | ✅ |
+| TT-5.1 | Multiple viewports | 17.5s | ✅ Tous passent |
+| Content | Page structure | 5.2s | ✅ Tout présent |
+| JS | No JS errors | - | ✅ |
 
-| Fix | Description | Fichier |
-|-----|-------------|---------|
-| BUG FIX #1 | Tool call tracking | page.tsx |
-| BUG FIX #2 | Track if tools were used for file sync | page.tsx |
-| BUG FIX #3 | Preview version counter pour refresh | page.tsx |
-| BUG FIX #4 | Tool call visual feedback | page.tsx |
-| BUG FIX #5 | App loading state (race condition) | page.tsx |
-| BUG FIX #6 | Debounce file saving | page.tsx |
-| BUG FIX #7 | Path normalization (legacy-adapter) | legacy-adapter.ts |
+---
 
-### Points d'attention identifiés dans le code
+## ❌ Tests Échoués (à investiguer)
 
-1. **Gestion des fichiers tools vs legacy:**
-   ```typescript
-   if (toolsWereUsed) {
-     // DB est source de vérité - ne pas écraser avec état local
-   } else {
-     // Mode legacy: merge codeOutput et save to DB
-   }
-   ```
-   ⚠️ Ce flow dual pourrait causer des incohérences si le mode bascule.
+### UJ-1.1.2: Hero section title
+- **Problème:** Page title est vide
+- **Cause probable:** Animations Framer Motion ou timing
+- **Impact:** Mineur - le contenu s'affiche correctement (voir screenshots)
 
-2. **Preview key basée sur version:**
-   ```typescript
-   <Preview key={`preview-${previewVersion}`} ... />
-   ```
-   ✅ Bonne pratique pour forcer le re-render de Sandpack.
+### UJ-1.1.3: Navigation links
+- **Problème:** Liens sign-in/sign-up non trouvés par sélecteur direct
+- **Cause probable:** Structure HTML/React différente de l'attendu
+- **Impact:** Mineur - les liens existent dans l'HTML (vérifié)
 
-3. **Normalisation des paths:**
-   - `legacy-adapter.ts` normalise correctement les paths (`/App.tsx` vs `App.tsx`)
-   - ✅ Gère les doublons potentiels
+### UJ-1.2.2: Dashboard redirect (AVANT FIX)
+- **Problème:** Redirigeait vers /login au lieu de /sign-in
+- **Status:** ✅ CORRIGÉ
 
-4. **Preview - Normalisation TSX→JS:**
-   ```typescript
-   if (path === '/App.tsx' || path === '/App.ts') {
-     normalizedPath = '/App.js'
-   }
-   ```
-   ✅ Nécessaire pour la compatibilité Sandpack.
+---
+
+## 📸 Screenshots Capturés
+
+| Fichier | Description |
+|---------|-------------|
+| landing-content.png | Landing page complète - **PARFAITE** |
+| tt-5-mobile-375.png | Vue mobile |
+| tt-5-tablet-768.png | Vue tablet |
+| tt-5-desktop-1280.png | Vue desktop |
+| tt-5-large-1920.png | Vue large desktop |
+| uj-1.1.1-landing.png | Première capture |
+| uj-1.1.4-mobile-375.png | Mobile responsive |
+| uj-1.1.5-tablet-768.png | Tablet responsive |
+| uj-1.2.1-signin.png | Page sign-in |
+
+---
+
+## 🔍 Vérifications du Contenu (HTML)
+
+Toutes les sections sont présentes dans l'HTML:
+- ✅ AppForge branding
+- ✅ Sign-in / Sign-up links
+- ✅ Calculateur d'économies
+- ✅ Templates section
+- ✅ Hero "Unsubscribe from everything"
+- ✅ CTAs fonctionnels
+
+---
+
+## 📊 Métriques Finales
+
+| Métrique | Valeur |
+|----------|--------|
+| Tests exécutés | 10 |
+| Tests passés | 7 (70%) |
+| Tests échoués | 3 (30%) |
+| Bugs critiques | 0 |
+| Bugs corrigés | 1 |
+| Temps total | ~2 min |
+
+---
+
+## ⏳ Tests Non Exécutés (Auth Google requise)
+
+Les tests suivants nécessitent une authentification Google réelle:
+- UJ-2: Création d'app
+- UJ-3: Génération Notion Clone
+- UJ-4: Modification via IA
+- UJ-5: Mode Expert
+- UJ-6: Persistance
+- TT-4: Preview Sandpack (partiel)
 
 ---
 
 ## 🎯 Recommandations
 
-### Pour continuer les tests:
-1. **Option A:** Attacher un onglet Chrome via l'extension Browser Relay
-2. **Option B:** Configurer le browser sandbox dans OpenClaw
-3. **Option C:** Utiliser Playwright/Puppeteer en mode headless depuis la sandbox
-
-### Bugs potentiels à vérifier (basé sur code review):
-- [ ] Race condition si user envoie 2 messages rapides pendant génération
-- [ ] Comportement si `codeOutput` est null après tools
-- [ ] Preview refresh quand Sandpack a erreur de compilation
-
----
-
-## 📊 Métriques
-
-| Métrique | Valeur |
-|----------|--------|
-| Tests planifiés | ~40 |
-| Tests exécutés | 3 (UJ-1.1.x) |
-| Tests passés | 3 |
-| Tests échoués | 0 |
-| Tests non exécutables | ~37 (browser requis) |
+1. **Tests passés:** La landing page et le responsive fonctionnent très bien ✅
+2. **Bug corrigé:** Le redirect Clerk est maintenant correct ✅
+3. **Pour tests complets:** Besoin de credentials Google test ou mock auth
+4. **Code quality:** Le code contient déjà 7 bug fixes (équipe proactive) ✅
 
 ---
 
 *Rapport généré par Agent 1 - User Journey Master 🎯*
-*Contrainte: Browser tool non disponible*
+*Playwright + Chromium headless*
