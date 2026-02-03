@@ -124,28 +124,44 @@ export default function AppEditorPage() {
         if (res.ok) {
           const app = await res.json()
           setAppName(app.name)
-          
+
           // Set app type (WEB, IOS, ANDROID, DESKTOP, API)
           const type = (app.type as AppType) || 'WEB'
           setAppType(type)
-          
+
           // Charger les métadonnées (économies)
           if (app.metadata) {
             setAppMetadata(app.metadata)
           }
-          
-          // Use app files or default for the type
-          if (app.files && Object.keys(app.files).length > 0) {
+
+          // CRITICAL FIX: If DB has no files, save DEFAULT_FILES to DB
+          // This ensures AI tools can read files that exist in preview
+          if (!app.files || Object.keys(app.files).length === 0) {
+            const defaultFiles = DEFAULT_FILES[type] || DEFAULT_FILES.WEB
+            console.log('[App] No files in DB, saving DEFAULT_FILES:', Object.keys(defaultFiles))
+
+            // Save to DB immediately so AI tools can access them
+            try {
+              await fetch(`/api/apps/${appId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: defaultFiles }),
+              })
+              console.log('[App] DEFAULT_FILES saved to DB')
+            } catch (err) {
+              console.error('[App] Failed to save default files:', err)
+            }
+
+            setFiles(defaultFiles)
+          } else {
             // Normalize files to .js for Sandpack compatibility (in case DB has .tsx)
             setFiles(normalizeFilesForSandpack(app.files))
-          } else {
-            setFiles(DEFAULT_FILES[type] || DEFAULT_FILES.WEB)
           }
-          
+
           if (app.vercelUrl) {
             setDeployUrl(app.vercelUrl)
           }
-          
+
           // Load conversation history if it exists
           if (app.conversation?.messages && app.conversation.messages.length > 0) {
             const loadedMessages: Message[] = app.conversation.messages.map((msg: { id: string; role: string; content: string; codeOutput?: unknown }) => ({
@@ -165,7 +181,7 @@ export default function AppEditorPage() {
         setIsAppLoaded(true)
       }
     }
-    
+
     loadApp()
   }, [appId])
 
