@@ -49,6 +49,7 @@ export function normalizeFilesForSandpack(files: Record<string, string>): Record
     
     // Remove problematic imports that Sandpack can't resolve
     // Tailwind is loaded via CDN, so we don't need these imports
+    // NOTE: Do NOT remove React imports - they are needed in Sandpack
     normalizedContent = normalizedContent
       // Remove ALL tailwind CSS imports (various formats)
       .replace(/^import\s+['"`]tailwindcss[^'"`]*['"`];?\s*$/gm, '')
@@ -57,10 +58,6 @@ export function normalizeFilesForSandpack(files: Record<string, string>): Record
       .replace(/^import\s+['"`]\.\/styles\.css['"`];?\s*$/gm, '')
       .replace(/^import\s+['"`]\.\/index\.css['"`];?\s*$/gm, '')
       .replace(/^import\s+['"`]\.\/globals\.css['"`];?\s*$/gm, '')
-      // Remove React imports (Sandpack provides React globally)
-      .replace(/^import\s+React\s*,?\s*\{[^}]*\}\s+from\s+['"`]react['"`];?\s*$/gm, '')
-      .replace(/^import\s+React\s+from\s+['"`]react['"`];?\s*$/gm, '')
-      .replace(/^import\s+\{[^}]*\}\s+from\s+['"`]react['"`];?\s*$/gm, '')
       // Remove empty lines left by import removal
       .replace(/^\s*\n/gm, '\n')
       .replace(/^\n+/, '')
@@ -82,10 +79,10 @@ interface PreviewProps {
 }
 
 // Templates par défaut pour chaque type
-// IMPORTANT: Tous les templates DOIVENT commencer par la destructuration des hooks React
+// IMPORTANT: Tous les templates DOIVENT importer React et les hooks
 export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
   WEB: {
-    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+    '/App.js': `import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 export default function App() {
   const [count, setCount] = useState(0);
@@ -113,7 +110,7 @@ export default function App() {
 }`,
   },
   IOS: {
-    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+    '/App.js': `import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -152,7 +149,7 @@ export default function App() {
 }`,
   },
   ANDROID: {
-    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+    '/App.js': `import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 export default function App() {
   const [items, setItems] = useState(['Item 1', 'Item 2']);
@@ -189,7 +186,7 @@ export default function App() {
 }`,
   },
   DESKTOP: {
-    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+    '/App.js': `import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(true);
@@ -234,7 +231,7 @@ export default function App() {
 }`,
   },
   API: {
-    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+    '/App.js': `import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 export default function App() {
   const [endpoints, setEndpoints] = useState([
