@@ -338,15 +338,33 @@ function ErrorOverlay({
   // Capture console errors
   const [consoleErrors, setConsoleErrors] = useState<PreviewError[]>([])
 
+  // Known warnings to ignore (not actual errors)
+  const IGNORED_WARNINGS = [
+    'cdn.tailwindcss.com should not be used in production',
+    'tailwindcss.com/docs/installation',
+    'Download the React DevTools',
+    'React DevTools',
+    'Warning: ReactDOM.render is no longer supported',
+    'Warning: Using UNSAFE_',
+    'Each child in a list should have a unique "key" prop',
+  ]
+
   useEffect(() => {
     if (!logs || logs.length === 0) return
 
     const newErrors: PreviewError[] = []
     for (const log of logs) {
-      if (log.method === 'error' || log.method === 'warn') {
+      // Only capture actual errors, not warnings (they're usually not critical)
+      if (log.method === 'error') {
         const errorMsg = log.data?.map((d: unknown) =>
           typeof d === 'string' ? d : JSON.stringify(d)
         ).join(' ') || 'Unknown error'
+
+        // Skip ignored warnings/messages
+        const shouldIgnore = IGNORED_WARNINGS.some(ignored =>
+          errorMsg.toLowerCase().includes(ignored.toLowerCase())
+        )
+        if (shouldIgnore) continue
 
         // Avoid duplicates
         if (!consoleErrors.some(e => e.message === errorMsg)) {

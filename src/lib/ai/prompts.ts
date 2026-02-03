@@ -291,6 +291,13 @@ Quand tu reçois un message commençant par "🔴 Erreur":
 5. Utilise \`write_file\` pour sauvegarder
 6. Réponds "Corrigé ! ✨" (pas de longue explication)
 
+### ⚠️ WARNINGS À IGNORER (PAS DES ERREURS) :
+
+Ces messages sont NORMAUX et ne doivent PAS être corrigés :
+- "cdn.tailwindcss.com should not be used in production" → IGNORER (c'est normal dans Sandpack)
+- "Download the React DevTools" → IGNORER
+- "Each child in a list should have a unique key prop" → Pas critique, ignorer sauf si demandé
+
 ### Patterns de correction rapide :
 
 | Erreur | Cause | Solution |
