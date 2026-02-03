@@ -12,7 +12,7 @@ import {
   PiggyBank,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType } from '@/components/preview'
+import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType, type PreviewError } from '@/components/preview'
 import { 
   ModeToggle, 
   ExpertLayout, 
@@ -110,7 +110,10 @@ export default function AppEditorPage() {
     replacedSaasName?: string
     monthlySavings?: number
   } | null>(null)
-  
+
+  // Preview error tracking for AI assistance
+  const [lastPreviewError, setLastPreviewError] = useState<PreviewError | null>(null)
+
   const hasInitialized = useRef(false)
 
   // Load app data and handle initial prompt
@@ -180,6 +183,32 @@ export default function AppEditorPage() {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
     }
+  }, [])
+
+  // Handle preview errors - store for potential AI fix
+  const handlePreviewError = useCallback((error: PreviewError) => {
+    console.log('[Preview] Error detected:', error)
+    setLastPreviewError(error)
+  }, [])
+
+  // Handle "Fix with AI" button - sends error to chat
+  const handleFixWithAI = useCallback((error: PreviewError) => {
+    const errorContext = [
+      `🔴 **Erreur ${error.type === 'compile' ? 'de compilation' : 'runtime'} détectée dans le preview:**`,
+      '',
+      '```',
+      error.message,
+      '```',
+      '',
+      error.file ? `📁 Fichier: \`${error.file}\`` : '',
+      error.line ? `📍 Ligne: ${error.line}${error.column ? `, Colonne: ${error.column}` : ''}` : '',
+      '',
+      '**Peux-tu analyser cette erreur et corriger le code ?**'
+    ].filter(Boolean).join('\n')
+
+    // Send as a user message to the AI
+    void handleSend(errorContext)
+    setLastPreviewError(null)
   }, [])
 
   const handleSend = async (text?: string) => {
@@ -517,13 +546,16 @@ export default function AppEditorPage() {
   const yearlySavings = appMetadata?.monthlySavings ? appMetadata.monthlySavings * 12 : 0
 
   // BUG FIX #3: Preview component with version-based key for reliable refresh
+  // + Error capture for AI assistance
   const previewComponent = (
-    <Preview 
+    <Preview
       key={`preview-${previewVersion}`}
       files={files}
       appType={appType}
       showCode={false}
       onResetFiles={handleResetFiles}
+      onError={handlePreviewError}
+      onFixWithAI={handleFixWithAI}
     />
   )
 

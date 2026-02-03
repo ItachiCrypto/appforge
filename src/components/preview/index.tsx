@@ -8,6 +8,7 @@ export {
   getAppTypeLabel,
   DEFAULT_FILES,
   type AppType,
+  type PreviewError,
 } from './Preview'
 
 // Also export as default

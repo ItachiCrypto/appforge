@@ -1,15 +1,28 @@
 "use client"
 
-import { 
-  SandpackProvider, 
-  SandpackPreview, 
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  SandpackProvider,
+  SandpackPreview,
   SandpackCodeEditor,
   SandpackLayout,
   useSandpack,
+  useSandpackConsole,
 } from '@codesandbox/sandpack-react'
-import { Smartphone, Monitor, Server, Globe, Apple, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Smartphone, Monitor, Server, Globe, Apple, AlertTriangle, RefreshCw, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+
+// Type for preview errors that can be sent to AI
+export interface PreviewError {
+  type: 'compile' | 'runtime' | 'console'
+  message: string
+  line?: number
+  column?: number
+  file?: string
+  stack?: string
+  timestamp: number
+}
 
 export type AppType = 'WEB' | 'IOS' | 'ANDROID' | 'DESKTOP' | 'API'
 
@@ -64,6 +77,8 @@ interface PreviewProps {
   showCode?: boolean
   className?: string
   onResetFiles?: () => void
+  onError?: (error: PreviewError) => void
+  onFixWithAI?: (error: PreviewError) => void
 }
 
 // Templates par défaut pour chaque type
@@ -252,13 +267,80 @@ export function getAppTypeLabel(type: AppType): string {
   return labels[type] || 'App'
 }
 
-// Custom error screen component
-function ErrorOverlay({ onReset }: { onReset?: () => void }) {
+// Custom error screen component with AI fix button
+function ErrorOverlay({
+  onReset,
+  onError,
+  onFixWithAI
+}: {
+  onReset?: () => void
+  onError?: (error: PreviewError) => void
+  onFixWithAI?: (error: PreviewError) => void
+}) {
   const { sandpack } = useSandpack()
+  const { logs } = useSandpackConsole({ maxMessageCount: 50, showSyntaxError: true, resetOnPreviewRestart: true })
   const error = sandpack.error
-  
-  if (!error) return null
-  
+  const lastReportedError = useRef<string | null>(null)
+
+  // Capture console errors
+  const [consoleErrors, setConsoleErrors] = useState<PreviewError[]>([])
+
+  useEffect(() => {
+    if (!logs || logs.length === 0) return
+
+    const newErrors: PreviewError[] = []
+    for (const log of logs) {
+      if (log.method === 'error' || log.method === 'warn') {
+        const errorMsg = log.data?.map((d: unknown) =>
+          typeof d === 'string' ? d : JSON.stringify(d)
+        ).join(' ') || 'Unknown error'
+
+        // Avoid duplicates
+        if (!consoleErrors.some(e => e.message === errorMsg)) {
+          const previewError: PreviewError = {
+            type: 'console',
+            message: errorMsg,
+            timestamp: Date.now(),
+          }
+          newErrors.push(previewError)
+
+          // Report to parent if new
+          if (onError && lastReportedError.current !== errorMsg) {
+            lastReportedError.current = errorMsg
+            onError(previewError)
+          }
+        }
+      }
+    }
+
+    if (newErrors.length > 0) {
+      setConsoleErrors(prev => [...prev, ...newErrors].slice(-10)) // Keep last 10
+    }
+  }, [logs, onError, consoleErrors])
+
+  // Create PreviewError from compile error
+  const compileError: PreviewError | null = error ? {
+    type: 'compile',
+    message: error.message || 'An error occurred while rendering the preview',
+    line: error.line,
+    column: error.column,
+    file: error.path,
+    timestamp: Date.now(),
+  } : null
+
+  // Report compile error to parent
+  useEffect(() => {
+    if (compileError && onError && lastReportedError.current !== compileError.message) {
+      lastReportedError.current = compileError.message
+      onError(compileError)
+    }
+  }, [compileError, onError])
+
+  // Show the most recent error (compile takes priority)
+  const displayError = compileError || consoleErrors[consoleErrors.length - 1]
+
+  if (!displayError) return null
+
   return (
     <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-6 z-10">
       <div className="max-w-md w-full bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-2xl">
@@ -266,40 +348,65 @@ function ErrorOverlay({ onReset }: { onReset?: () => void }) {
           <div className="p-2 bg-red-500/20 rounded-lg">
             <AlertTriangle className="w-6 h-6 text-red-400" />
           </div>
-          <h3 className="text-lg font-semibold text-white">Preview Error</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-white">Preview Error</h3>
+            <span className="text-xs text-gray-400">
+              {displayError.type === 'compile' ? 'Compilation Error' : 'Runtime Error'}
+              {displayError.file && ` in ${displayError.file}`}
+              {displayError.line && `:${displayError.line}`}
+            </span>
+          </div>
         </div>
-        
+
         <div className="bg-gray-900 rounded-lg p-4 mb-4 max-h-40 overflow-auto">
           <code className="text-sm text-red-300 whitespace-pre-wrap break-words">
-            {error.message || 'An error occurred while rendering the preview'}
+            {displayError.message}
           </code>
         </div>
-        
+
         <p className="text-gray-400 text-sm mb-4">
-          The AI will automatically try to fix this error. You can also reset to the default template.
+          Cliquez sur "Corriger avec l'IA" pour que l'IA analyse et corrige automatiquement cette erreur.
         </p>
-        
-        {onReset && (
-          <Button 
-            onClick={onReset}
-            variant="outline" 
-            className="w-full"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Reset Files
-          </Button>
-        )}
+
+        <div className="flex gap-2">
+          {onFixWithAI && (
+            <Button
+              onClick={() => onFixWithAI(displayError)}
+              className="flex-1 bg-purple-600 hover:bg-purple-700"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Corriger avec l'IA
+            </Button>
+          )}
+          {onReset && (
+            <Button
+              onClick={onReset}
+              variant="outline"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reset
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 // Wrapper component that includes error handling
-function PreviewWithErrorHandling({ onReset }: { onReset?: () => void }) {
+function PreviewWithErrorHandling({
+  onReset,
+  onError,
+  onFixWithAI
+}: {
+  onReset?: () => void
+  onError?: (error: PreviewError) => void
+  onFixWithAI?: (error: PreviewError) => void
+}) {
   return (
     <div className="relative h-full w-full" style={{ minHeight: '100%' }}>
-      <ErrorOverlay onReset={onReset} />
-      <SandpackPreview 
+      <ErrorOverlay onReset={onReset} onError={onError} onFixWithAI={onFixWithAI} />
+      <SandpackPreview
         showNavigator={false}
         showRefreshButton={false}
         showOpenInCodeSandbox={false}
@@ -310,7 +417,15 @@ function PreviewWithErrorHandling({ onReset }: { onReset?: () => void }) {
 }
 
 // Composant Preview principal
-export function Preview({ files, appType, showCode = false, className, onResetFiles }: PreviewProps) {
+export function Preview({
+  files,
+  appType,
+  showCode = false,
+  className,
+  onResetFiles,
+  onError,
+  onFixWithAI
+}: PreviewProps) {
   // Normalize TypeScript files to JS for Sandpack AND clean imports
   const normalizedFiles = normalizeFilesForSandpack(files)
   
@@ -337,12 +452,16 @@ export function Preview({ files, appType, showCode = false, className, onResetFi
           }}
         >
           <SandpackLayout>
-            <SandpackCodeEditor 
-              showTabs 
-              showLineNumbers 
+            <SandpackCodeEditor
+              showTabs
+              showLineNumbers
               style={{ height: '100%', minHeight: '400px' }}
             />
-            <PreviewWithErrorHandling onReset={onResetFiles} />
+            <PreviewWithErrorHandling
+              onReset={onResetFiles}
+              onError={onError}
+              onFixWithAI={onFixWithAI}
+            />
           </SandpackLayout>
         </SandpackProvider>
       )
@@ -359,7 +478,11 @@ export function Preview({ files, appType, showCode = false, className, onResetFi
             externalResources: ['https://cdn.tailwindcss.com'],
           }}
         >
-          <PreviewWithErrorHandling onReset={onResetFiles} />
+          <PreviewWithErrorHandling
+            onReset={onResetFiles}
+            onError={onError}
+            onFixWithAI={onFixWithAI}
+          />
         </SandpackProvider>
       </div>
     )
