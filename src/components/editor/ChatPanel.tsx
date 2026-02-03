@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, Loader2, Sparkles, Hammer, Check, X, FileText, FileEdit } from 'lucide-react'
+import { Send, Loader2, Sparkles, Hammer, Check, X, FileText, FileEdit, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface Message {
@@ -33,6 +33,7 @@ interface ChatPanelProps {
   toolCalls?: ToolCallState[]  // BUG FIX #4: Add tool calls prop
   onInputChange: (value: string) => void
   onSend: () => void
+  onStop?: () => void  // RECOM-1: Add stop handler
   className?: string
   compact?: boolean
 }
@@ -70,6 +71,7 @@ export function ChatPanel({
   toolCalls = [],  // BUG FIX #4: Default to empty array
   onInputChange,
   onSend,
+  onStop,  // RECOM-1: Stop handler
   className,
   compact = false
 }: ChatPanelProps) {
@@ -262,17 +264,29 @@ export function ChatPanel({
             disabled={isLoading}
             className={compact ? "text-sm h-8" : ""}
           />
-          <Button 
-            size={compact ? "sm" : "icon"}
-            onClick={onSend}
-            disabled={!input.trim() || isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className={cn(compact ? "w-3 h-3" : "w-4 h-4", "animate-spin")} />
-            ) : (
-              <Send className={cn(compact ? "w-3 h-3" : "w-4 h-4")} />
-            )}
-          </Button>
+          {/* RECOM-1: Show Stop button when loading, Send button otherwise */}
+          {isLoading && onStop ? (
+            <Button 
+              size={compact ? "sm" : "icon"}
+              variant="destructive"
+              onClick={onStop}
+              title="Arrêter la génération"
+            >
+              <Square className={cn(compact ? "w-3 h-3" : "w-4 h-4")} />
+            </Button>
+          ) : (
+            <Button 
+              size={compact ? "sm" : "icon"}
+              onClick={onSend}
+              disabled={!input.trim() || isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className={cn(compact ? "w-3 h-3" : "w-4 h-4", "animate-spin")} />
+              ) : (
+                <Send className={cn(compact ? "w-3 h-3" : "w-4 h-4")} />
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </div>

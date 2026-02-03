@@ -48,6 +48,10 @@ export function CodeEditor({ files, onFileChange, className, readOnly = false }:
   const { activeFile, openTabs, openTab } = useEditorStore()
   const editorRef = useRef<any>(null)
   
+  // BUG FIX #8: Store viewStates per file to preserve cursor/scroll position
+  const viewStatesRef = useRef<Map<string, any>>(new Map())
+  const previousFileRef = useRef<string | null>(null)
+  
   // Get current file content
   const currentContent = activeFile ? files[activeFile] || '' : ''
   const currentLanguage = activeFile ? getLanguage(activeFile) : 'plaintext'
@@ -60,6 +64,42 @@ export function CodeEditor({ files, onFileChange, className, readOnly = false }:
     }
   }, [files, activeFile, openTab])
   
+  // BUG FIX #8: Save viewState when switching files, restore when coming back
+  useEffect(() => {
+    if (!editorRef.current) return
+    
+    // Save the viewState of the previous file
+    if (previousFileRef.current && previousFileRef.current !== activeFile) {
+      try {
+        const viewState = editorRef.current.saveViewState()
+        if (viewState) {
+          viewStatesRef.current.set(previousFileRef.current, viewState)
+        }
+      } catch (e) {
+        // Editor might be disposed, ignore
+      }
+    }
+    
+    // Restore viewState of the new file (after Monaco updates content)
+    if (activeFile) {
+      // Use setTimeout to ensure Monaco has updated the model first
+      setTimeout(() => {
+        if (editorRef.current && activeFile) {
+          const savedState = viewStatesRef.current.get(activeFile)
+          if (savedState) {
+            try {
+              editorRef.current.restoreViewState(savedState)
+            } catch (e) {
+              // Ignore if state is stale
+            }
+          }
+        }
+      }, 0)
+    }
+    
+    previousFileRef.current = activeFile
+  }, [activeFile])
+  
   const handleEditorChange = useCallback((value: string | undefined) => {
     if (activeFile && value !== undefined && onFileChange) {
       onFileChange(activeFile, value)
@@ -68,7 +108,19 @@ export function CodeEditor({ files, onFileChange, className, readOnly = false }:
   
   const handleEditorMount = useCallback((editor: any) => {
     editorRef.current = editor
-  }, [])
+    
+    // BUG FIX #8: Restore viewState on mount if we have one
+    if (activeFile) {
+      const savedState = viewStatesRef.current.get(activeFile)
+      if (savedState) {
+        try {
+          editor.restoreViewState(savedState)
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
+  }, [activeFile])
   
   if (!activeFile) {
     return (

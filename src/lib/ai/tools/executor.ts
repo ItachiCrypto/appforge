@@ -17,6 +17,9 @@ import { prisma } from '@/lib/prisma'
 const fileService = getFileService()
 const legacyAdapter = getLegacyFileAdapter()
 
+// FIX NEW-BUG-2: Maximum file size to prevent storage issues and performance problems
+const MAX_FILE_SIZE_BYTES = 500 * 1024 // 500KB
+
 // Context type to determine which backend to use
 export type ToolContext = 
   | { type: 'project'; projectId: string }
@@ -197,6 +200,17 @@ async function executeToolForProject(
           error: 'Missing required parameters: path and content',
         };
       }
+      
+      // FIX NEW-BUG-2: Validate file size before writing
+      const contentSize = Buffer.byteLength(content, 'utf8');
+      if (contentSize > MAX_FILE_SIZE_BYTES) {
+        return {
+          toolCallId: call.id,
+          success: false,
+          error: `File too large (${Math.round(contentSize / 1024)}KB). Maximum size is ${MAX_FILE_SIZE_BYTES / 1024}KB.`,
+        };
+      }
+      
       const file = await fileService.upsertFile(projectId, path, content);
       return {
         toolCallId: call.id,
@@ -416,6 +430,16 @@ async function executeToolForLegacyApp(
       
       const path = rawPath.trim()
       const content = rawContent
+      
+      // FIX NEW-BUG-2: Validate file size before writing
+      const contentSize = Buffer.byteLength(content, 'utf8');
+      if (contentSize > MAX_FILE_SIZE_BYTES) {
+        return {
+          toolCallId: call.id,
+          success: false,
+          error: `File too large (${Math.round(contentSize / 1024)}KB). Maximum size is ${MAX_FILE_SIZE_BYTES / 1024}KB.`,
+        };
+      }
       
       const result = await legacyAdapter.writeFile(appId, path, content);
       return {

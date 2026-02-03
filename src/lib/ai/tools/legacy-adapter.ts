@@ -277,6 +277,13 @@ export class LegacyFileAdapter {
   }
   
   /**
+   * FIX NEW-BUG-3: Escape special regex characters before glob conversion
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+  }
+  
+  /**
    * Search for text in files
    */
   async searchFiles(appId: string, query: string, glob?: string): Promise<LegacySearchResult[]> {
@@ -288,9 +295,15 @@ export class LegacyFileAdapter {
       
       // Apply glob filter if specified
       if (glob) {
-        const pattern = glob.replace('*', '.*')
-        if (!new RegExp(pattern).test(path)) {
-          continue
+        // FIX NEW-BUG-3: Escape regex special chars, then convert * to .*
+        const escapedGlob = this.escapeRegex(glob).replace(/\\\*/g, '.*')
+        try {
+          if (!new RegExp(escapedGlob).test(path)) {
+            continue
+          }
+        } catch (e) {
+          // Invalid regex pattern, skip filtering
+          console.warn('[searchFiles] Invalid glob pattern:', glob, e)
         }
       }
       

@@ -101,6 +101,9 @@ export default function AppEditorPage() {
   // BUG FIX #6: Debounce timer ref for file saving
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
   
+  // RECOM-1: AbortController for stopping streaming
+  const abortControllerRef = useRef<AbortController | null>(null)
+  
   // Métadonnées pour les économies
   const [appMetadata, setAppMetadata] = useState<{
     replacedSaas?: string
@@ -171,6 +174,14 @@ export default function AppEditorPage() {
     }
   }, [initialPrompt, isAppLoaded])
 
+  // RECOM-1: Handle stop streaming
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+  }, [])
+
   const handleSend = async (text?: string) => {
     const messageText = text || input
     if (!messageText.trim() || isLoading) return
@@ -187,6 +198,9 @@ export default function AppEditorPage() {
     
     // BUG FIX #4: Reset tool calls at start of new message
     setToolCalls([])
+    
+    // RECOM-1: Create AbortController for this request
+    abortControllerRef.current = new AbortController()
 
     // Create placeholder for streaming response
     const assistantId = (Date.now() + 1).toString()
@@ -214,6 +228,7 @@ export default function AppEditorPage() {
             content: m.content,
           })),
         }),
+        signal: abortControllerRef.current.signal,  // RECOM-1: Pass abort signal
       })
 
       if (!res.ok) {
@@ -360,6 +375,17 @@ export default function AppEditorPage() {
         setPreviewVersion(v => v + 1)
       }
     } catch (error) {
+      // RECOM-1: Handle abort gracefully
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        // User stopped the generation - add a note to the message
+        setMessages(prev => prev.map(m => 
+          m.id === assistantId 
+            ? { ...m, content: m.content + '\n\n⏹️ _Génération interrompue_' }
+            : m
+        ))
+        return
+      }
+      
       console.error('Chat error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
       
@@ -377,6 +403,8 @@ export default function AppEditorPage() {
       setIsLoading(false)
       // BUG FIX #4: Clear tool calls when done
       setToolCalls([])
+      // RECOM-1: Clear abort controller
+      abortControllerRef.current = null
     }
   }
 
@@ -467,6 +495,7 @@ export default function AppEditorPage() {
   )
 
   // BUG FIX #4: Chat component with tool calls for visual feedback
+  // RECOM-1: Added onStop for streaming interruption
   const chatComponent = (
     <ChatPanel
       messages={messages}
@@ -475,6 +504,7 @@ export default function AppEditorPage() {
       toolCalls={toolCalls}
       onInputChange={setInput}
       onSend={() => handleSend()}
+      onStop={handleStop}
       compact={mode === 'expert'}
     />
   )
