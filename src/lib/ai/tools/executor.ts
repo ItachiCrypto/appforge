@@ -570,9 +570,13 @@ export async function executeTools(
   calls: ToolCall[],
   context: ToolContext
 ): Promise<ToolResult[]> {
+  console.log('[Tool Executor] Executing', calls.length, 'tool calls for', context.type, context.type === 'app' ? context.appId : context.projectId)
+
   const results: ToolResult[] = []
   for (const call of calls) {
+    console.log('[Tool Executor] Executing:', call.name, 'with args:', JSON.stringify(call.arguments).substring(0, 200))
     const result = await executeTool(call, context)
+    console.log('[Tool Executor] Result:', call.name, result.success ? '✓' : '✗', result.error || '')
     results.push(result)
   }
   return results

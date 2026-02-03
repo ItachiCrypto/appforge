@@ -82,9 +82,14 @@ interface PreviewProps {
 }
 
 // Templates par défaut pour chaque type
+// IMPORTANT: Tous les templates DOIVENT commencer par la destructuration des hooks React
 export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
   WEB: {
-    '/App.js': `export default function App() {
+    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+export default function App() {
+  const [count, setCount] = useState(0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
       <div className="text-center">
@@ -95,17 +100,24 @@ export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
           <p className="text-xl text-white/80 mb-6">
             Start building something amazing!
           </p>
-          <button className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-lg hover:bg-white/90 transition-all transform hover:scale-105">
-            Get Started
+          <button
+            onClick={() => setCount(c => c + 1)}
+            className="bg-white text-purple-600 font-semibold px-6 py-3 rounded-lg hover:bg-white/90 transition-all transform hover:scale-105"
+          >
+            Clicked {count} times
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }`,
   },
   IOS: {
-    '/App.js': `export default function App() {
+    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('home');
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       {/* Status Bar */}
@@ -116,12 +128,12 @@ export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
           <span>🔋</span>
         </div>
       </div>
-      
+
       {/* Content */}
       <div className="px-4 py-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">My iOS App</h1>
         <p className="text-gray-500 mb-8">Built with React Native</p>
-        
+
         {/* Card */}
         <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
           <div className="flex items-center gap-4">
@@ -136,84 +148,115 @@ export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
         </div>
       </div>
     </div>
-  )
+  );
 }`,
   },
   ANDROID: {
-    '/App.js': `export default function App() {
+    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+export default function App() {
+  const [items, setItems] = useState(['Item 1', 'Item 2']);
+
+  const addItem = () => {
+    setItems([...items, \`Item \${items.length + 1}\`]);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* App Bar */}
       <div className="bg-indigo-600 px-4 py-4 shadow-lg">
         <h1 className="text-xl font-medium text-white">My Android App</h1>
       </div>
-      
+
       {/* Content */}
       <div className="p-4">
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Hello Android!</h2>
-          <p className="text-gray-600">Built with React Native</p>
-        </div>
-        
+        {items.map((item, i) => (
+          <div key={i} className="bg-white rounded-lg shadow-md p-4 mb-4">
+            <h2 className="text-lg font-medium text-gray-900">{item}</h2>
+          </div>
+        ))}
+
         {/* FAB */}
-        <button className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white text-2xl hover:bg-indigo-700 transition-colors">
+        <button
+          onClick={addItem}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white text-2xl hover:bg-indigo-700 transition-colors"
+        >
           +
         </button>
       </div>
     </div>
-  )
+  );
 }`,
   },
   DESKTOP: {
-    '/App.js': `export default function App() {
+    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+export default function App() {
+  const [darkMode, setDarkMode] = useState(true);
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans">
+    <div className={\`min-h-screen \${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'} font-sans\`}>
       {/* Title Bar */}
-      <div className="bg-gray-800 px-4 py-2 flex justify-between items-center border-b border-gray-700">
-        <span className="text-sm text-gray-300">My Desktop App</span>
+      <div className={\`\${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'} px-4 py-2 flex justify-between items-center border-b\`}>
+        <span className="text-sm">My Desktop App</span>
         <div className="flex gap-2">
           <button className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400" />
           <button className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400" />
           <button className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400" />
         </div>
       </div>
-      
+
       {/* Content */}
       <div className="p-8">
-        <h1 className="text-3xl font-bold mb-4">Desktop Application</h1>
-        <p className="text-gray-400 mb-6">Built with Electron</p>
-        
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Desktop Application</h1>
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className={\`px-4 py-2 rounded-lg \${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}\`}
+          >
+            {darkMode ? '☀️ Light' : '🌙 Dark'}
+          </button>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className={\`\${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-lg p-4 border\`}>
             <h3 className="font-semibold mb-2">Feature 1</h3>
-            <p className="text-sm text-gray-400">Description here</p>
+            <p className="text-sm opacity-70">Description here</p>
           </div>
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className={\`\${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-lg p-4 border\`}>
             <h3 className="font-semibold mb-2">Feature 2</h3>
-            <p className="text-sm text-gray-400">Description here</p>
+            <p className="text-sm opacity-70">Description here</p>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }`,
   },
   API: {
-    '/App.js': `export default function App() {
-  const endpoints = [
+    '/App.js': `const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+export default function App() {
+  const [endpoints, setEndpoints] = useState([
     { method: 'GET', path: '/api/users', desc: 'List all users' },
     { method: 'POST', path: '/api/users', desc: 'Create a user' },
     { method: 'GET', path: '/api/users/:id', desc: 'Get user by ID' },
     { method: 'DELETE', path: '/api/users/:id', desc: 'Delete user' },
-  ]
-  
+  ]);
+
+  const [filter, setFilter] = useState('ALL');
+
   const methodColors = {
     GET: 'bg-green-500',
     POST: 'bg-blue-500',
     PUT: 'bg-yellow-500',
     DELETE: 'bg-red-500',
-  }
-  
+  };
+
+  const filteredEndpoints = filter === 'ALL'
+    ? endpoints
+    : endpoints.filter(ep => ep.method === filter);
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-mono">
       {/* Header */}
@@ -221,10 +264,23 @@ export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
         <h1 className="text-2xl font-bold">API Documentation</h1>
         <p className="text-gray-500 text-sm">v1.0.0</p>
       </div>
-      
+
+      {/* Filter */}
+      <div className="px-6 py-3 flex gap-2 border-b border-gray-800">
+        {['ALL', 'GET', 'POST', 'DELETE'].map(m => (
+          <button
+            key={m}
+            onClick={() => setFilter(m)}
+            className={\`px-3 py-1 rounded text-xs font-bold \${filter === m ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}\`}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
       {/* Endpoints */}
       <div className="p-6 space-y-3">
-        {endpoints.map((ep, i) => (
+        {filteredEndpoints.map((ep, i) => (
           <div key={i} className="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-gray-700 transition-colors">
             <div className="flex items-center gap-3 mb-2">
               <span className={\`\${methodColors[ep.method]} text-white text-xs font-bold px-2 py-1 rounded\`}>
@@ -237,7 +293,7 @@ export const DEFAULT_FILES: Record<AppType, Record<string, string>> = {
         ))}
       </div>
     </div>
-  )
+  );
 }`,
   },
 }

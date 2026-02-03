@@ -209,22 +209,26 @@ export class LegacyFileAdapter {
    * Write/create a file
    */
   async writeFile(appId: string, path: string, content: string): Promise<{ created: boolean }> {
+    console.log('[LegacyAdapter] writeFile:', { appId, path, contentLength: content?.length })
+
     const files = await this.getAppFiles(appId)
     const normalizedPath = this.normalizePath(path)
-    
+
     const existed = files[normalizedPath] !== undefined || files[normalizedPath.slice(1)] !== undefined
-    
+
     // Always use normalized path with /
     files[normalizedPath] = content
-    
+
     // Remove the non-normalized version if it exists
     const pathWithoutSlash = normalizedPath.slice(1)
     if (files[pathWithoutSlash] !== undefined) {
       delete files[pathWithoutSlash]
     }
-    
+
     await this.saveAppFiles(appId, files)
-    
+
+    console.log('[LegacyAdapter] writeFile OK:', { path: normalizedPath, created: !existed, totalFiles: Object.keys(files).length })
+
     return { created: !existed }
   }
   
