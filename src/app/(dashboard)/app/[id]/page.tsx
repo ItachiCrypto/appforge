@@ -320,11 +320,22 @@ export default function AppEditorPage() {
                   ))
                 }
               } catch (parseError) {
-                // Log but don't crash - incomplete chunks are normal during streaming
-                if (jsonStr.length > 10) {
-                  console.debug('SSE parse skip (may be incomplete chunk):', 
-                    parseError instanceof Error ? parseError.message : 'Unknown error'
+                // RECOM-2: Better SSE error handling
+                // Distinguish incomplete chunks from actual JSON errors
+                const isLikelyIncomplete = 
+                  jsonStr.length < 10 ||  // Too short to be valid
+                  !jsonStr.includes('}') ||  // Missing closing brace
+                  (jsonStr.match(/"/g)?.length || 0) % 2 !== 0  // Odd number of quotes
+                
+                if (!isLikelyIncomplete) {
+                  // This might be a real JSON error - log it more prominently
+                  console.warn('[SSE] JSON parse error (not incomplete chunk):', 
+                    parseError instanceof Error ? parseError.message : 'Unknown error',
+                    '\nJSON:', jsonStr.substring(0, 200)
                   )
+                } else if (process.env.NODE_ENV === 'development') {
+                  // Only log incomplete chunks in dev mode
+                  console.debug('[SSE] Incomplete chunk skipped:', jsonStr.length, 'chars')
                 }
               }
             }

@@ -95,3 +95,47 @@ Le browser tool n'est pas disponible:
 ---
 
 *Fichier partagé entre tous les agents QA*
+
+---
+
+## Agent 3 (Edge Case Hunter) 🐛
+
+**Status:** ✅ Analyse terminée
+
+**Tests effectués:**
+- [x] Analyse BUG-1 à BUG-10 (code review)
+- [x] Identification nouveaux bugs
+- [x] Fixes implémentés
+
+**Méthode:** Analyse statique du code source (browser non disponible dans sandbox)
+
+### Résultats Clés
+
+#### ✅ Bugs Originaux (7/10 déjà fixés):
+- BUG-1: Race condition ✅ (sequential tool exec)
+- BUG-2: codeOutput null ✅ (JSON accumulation)
+- BUG-3: Preview refresh ✅ (previewVersion)
+- BUG-4: Tools écrasent fichiers ✅ (sequential exec)
+- BUG-5: Path normalization ✅ (normalizePath)
+- BUG-6: Retry silencieux ⚠️ (partiel)
+- BUG-7: Message sans codeOutput ✅
+- BUG-8: Mode Expert focus ❌ → **FIXÉ maintenant**
+- BUG-9/10: ESLint/Console noise (mineur)
+
+#### 🆕 Nouveaux Bugs Trouvés:
+1. **NEW-BUG-1:** Monaco memory leak potentiel (P2)
+2. **NEW-BUG-2:** Pas de limite taille fichier → **FIXÉ (500KB)**
+3. **NEW-BUG-3:** Regex injection searchFiles → **FIXÉ**
+
+#### 🔧 Fixes Appliqués:
+1. `src/components/editor/CodeEditor.tsx` - viewState persistence
+2. `src/lib/ai/tools/executor.ts` - MAX_FILE_SIZE 500KB
+3. `src/lib/ai/tools/legacy-adapter.ts` - escapeRegex()
+
+### Fichier de bugs détaillé:
+➡️ `/root/.openclaw/workspace/startup/BUGS_AGENT3.md`
+
+### Timeline Agent 3:
+| 19:40 | Début analyse edge cases |
+| 19:55 | Analyse statique complète |
+| 20:00 | 3 fixes appliqués |
