@@ -225,231 +225,802 @@ export const SAAS_APPS: SaaSApp[] = [
   },
 ]
 
-// Templates correspondants avec leurs prompts
-// IMPORTANT: Les prompts doivent être TRÈS détaillés pour obtenir des apps de qualité
+// ============================================================================
+// TEMPLATES AVEC PROMPTS ULTRA-DÉTAILLÉS POUR APPS DE QUALITÉ PRODUCTION
+// ============================================================================
+// RÈGLE D'OR: Plus le prompt est détaillé, meilleure sera l'app générée.
+// Chaque prompt doit spécifier: structure, composants, états, interactions,
+// styles, animations, données initiales, et edge cases.
+// ============================================================================
+
 export const SAAS_TEMPLATES: Record<string, {
   name: string
   prompt: string
   description: string
 }> = {
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📝 NOTION CLONE - App de notes professionnelle
+  // ════════════════════════════════════════════════════════════════════════════
   'notion-clone': {
     name: 'Clone Notion',
-    prompt: `Crée une app de notes complète style Notion avec architecture MULTI-FICHIERS.
+    prompt: `Tu es un développeur senior React. Crée une app de notes PROFESSIONNELLE style Notion.
 
-⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
+## ARCHITECTURE OBLIGATOIRE
 
-FICHIERS À CRÉER (dans cet ordre):
+### Structure des composants (dans App.js)
+\`\`\`
+App
+├── Sidebar (w-64, fixed left)
+│   ├── Logo + Titre "📝 Mes Notes"
+│   ├── SearchBar (filtre temps réel)
+│   ├── PageList (pages avec nested children)
+│   │   └── PageItem (récursif pour nested)
+│   ├── NewPageButton
+│   └── DarkModeToggle
+├── MainContent (flex-1, ml-64)
+│   ├── PageHeader
+│   │   ├── BreadcrumbNav
+│   │   ├── EditableTitle (contentEditable)
+│   │   ├── PageActions (export, delete)
+│   │   └── LastModified timestamp
+│   └── Editor
+│       ├── BlockToolbar (format buttons)
+│       └── BlockList
+│           └── Block (text, heading, list, code, quote)
+\`\`\`
 
-1. **/components/Sidebar.js** - Sidebar de navigation
-   - Liste des pages avec titre
-   - Barre de recherche
-   - Bouton "+ Nouvelle page"
-   - Page active highlightée
-   - Bouton supprimer 🗑️ au hover
-   - Props: pages, activePage, onSelect, onDelete, onCreate, searchQuery, onSearch
+### État global (useState au top level)
+\`\`\`javascript
+const [pages, setPages] = useState([
+  {
+    id: '1',
+    title: 'Bienvenue 👋',
+    content: [
+      { id: 'b1', type: 'heading', content: 'Bienvenue dans tes Notes!' },
+      { id: 'b2', type: 'text', content: 'Ceci est ton espace personnel pour organiser tes idées.' },
+      { id: 'b3', type: 'list', content: ['Créer des pages', 'Organiser en sous-pages', 'Rechercher rapidement'] },
+    ],
+    parentId: null,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    icon: '📄',
+    isExpanded: true,
+  },
+  {
+    id: '2',
+    title: 'Projets',
+    content: [{ id: 'b4', type: 'text', content: 'Liste de mes projets en cours...' }],
+    parentId: null,
+    icon: '📁',
+    isExpanded: true,
+  },
+  {
+    id: '3',
+    title: 'Projet Alpha',
+    content: [{ id: 'b5', type: 'text', content: 'Détails du projet Alpha' }],
+    parentId: '2', // NESTED sous "Projets"
+    icon: '🚀',
+  },
+])
+const [selectedPageId, setSelectedPageId] = useState('1')
+const [searchQuery, setSearchQuery] = useState('')
+const [isDarkMode, setIsDarkMode] = useState(false)
+\`\`\`
 
-2. **/components/Editor.js** - Éditeur de contenu
-   - Titre éditable (input)
-   - Zone de texte (textarea)
-   - Sauvegarde auto (onChange)
-   - Empty state si pas de page sélectionnée
-   - Props: page, onUpdate
+### localStorage Persistence
+\`\`\`javascript
+// Charger au mount
+useEffect(() => {
+  const saved = localStorage.getItem('notion-pages')
+  if (saved) setPages(JSON.parse(saved))
+  const darkMode = localStorage.getItem('notion-dark') === 'true'
+  setIsDarkMode(darkMode)
+}, [])
 
-3. **/components/Header.js** - Header avec actions
-   - Toggle dark mode ☀️/🌙
-   - Titre de l'app "📝 Mes Notes"
-   - Props: darkMode, onToggleDark
+// Sauvegarder à chaque changement
+useEffect(() => {
+  localStorage.setItem('notion-pages', JSON.stringify(pages))
+}, [pages])
+\`\`\`
 
-4. **/App.js** - Composant principal
-   - Importe Sidebar, Editor, Header
-   - State: pages[], activePage, darkMode, searchQuery
-   - localStorage: persister pages
-   - Layout: flex avec sidebar (w-64) et contenu
+## FONCTIONNALITÉS DÉTAILLÉES
 
-FONCTIONNALITÉS:
-- CRUD pages: créer, renommer, supprimer
-- Recherche temps réel: filtre les pages par titre
-- Dark mode: toggle global
-- localStorage: persister pages et contenu
-- Empty states partout
+### 1. Sidebar Navigation
+- Logo animé avec hover scale
+- Barre de recherche avec icône 🔍, placeholder "Rechercher...", filtre en temps réel
+- Liste des pages avec indentation pour nested (padding-left: level * 16px)
+- Chaque page affiche: icône + titre (tronqué si trop long)
+- Hover: fond légèrement plus clair + boutons ➕ (add child) et 🗑️ (delete)
+- Clic: sélectionne la page
+- Double-clic: mode édition inline du titre
+- Bouton "+ Nouvelle page" sticky en bas
 
-STYLE:
-- Sidebar: bg-gray-900 (dark) ou bg-gray-100 (light)
-- Contenu: bg-white (dark: bg-gray-800)
-- Transitions: transition-all duration-200
-- Hover states sur tous les éléments cliquables`,
+### 2. Page Items (récursif)
+\`\`\`javascript
+function PageItem({ page, level = 0, pages, onSelect, onDelete, onAddChild }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const children = pages.filter(p => p.parentId === page.id)
+  
+  return (
+    <div style={{ paddingLeft: level * 16 }}>
+      <div className="group flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+        {children.length > 0 && (
+          <button onClick={() => toggleExpand(page.id)}>
+            {page.isExpanded ? '▼' : '▶'}
+          </button>
+        )}
+        <span>{page.icon}</span>
+        {isEditing ? (
+          <input autoFocus value={page.title} onBlur={() => setIsEditing(false)} />
+        ) : (
+          <span onDoubleClick={() => setIsEditing(true)}>{page.title}</span>
+        )}
+        <div className="ml-auto opacity-0 group-hover:opacity-100 flex gap-1">
+          <button onClick={() => onAddChild(page.id)}>➕</button>
+          <button onClick={() => onDelete(page.id)}>🗑️</button>
+        </div>
+      </div>
+      {page.isExpanded && children.map(child => (
+        <PageItem key={child.id} page={child} level={level + 1} {...props} />
+      ))}
+    </div>
+  )
+}
+\`\`\`
+
+### 3. Éditeur de Blocs
+Types de blocs supportés:
+- **text**: paragraphe simple, placeholder "Tapez '/' pour les commandes..."
+- **heading**: h1/h2/h3 avec style bold et taille différente
+- **list**: ul avec bullets, chaque item éditable
+- **code**: fond gris, font-mono, padding
+- **quote**: bordure gauche colorée, italique
+
+Chaque bloc:
+- Hover: toolbar flottante avec actions (type, move up/down, delete)
+- Enter: crée nouveau bloc en dessous
+- Backspace sur bloc vide: supprime le bloc
+- Slash command "/" : affiche menu de types
+
+### 4. Raccourcis Clavier (event handlers)
+\`\`\`javascript
+useEffect(() => {
+  const handleKeyDown = (e) => {
+    if (e.metaKey || e.ctrlKey) {
+      if (e.key === 'n') { e.preventDefault(); createNewPage() }
+      if (e.key === 's') { e.preventDefault(); /* auto-saved */ }
+      if (e.key === 'f') { e.preventDefault(); focusSearch() }
+      if (e.key === 'd') { e.preventDefault(); toggleDarkMode() }
+    }
+  }
+  window.addEventListener('keydown', handleKeyDown)
+  return () => window.removeEventListener('keydown', handleKeyDown)
+}, [])
+\`\`\`
+
+### 5. Dark Mode
+Toggle ☀️/🌙 dans la sidebar
+Classes conditionnelles sur le conteneur racine:
+- Light: bg-white text-gray-900
+- Dark: bg-gray-900 text-gray-100
+
+## STYLES CSS OBLIGATOIRES
+
+\`\`\`css
+/* Container principal */
+.app { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 16rem; /* w-64 */
+  background: #f7f7f5;
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+}
+.dark .sidebar { background: #1f1f1f; border-color: #333; }
+
+/* Page item */
+.page-item {
+  transition: all 0.15s ease;
+  border-radius: 4px;
+}
+.page-item:hover { background: rgba(0,0,0,0.04); }
+.dark .page-item:hover { background: rgba(255,255,255,0.04); }
+.page-item.active { background: rgba(0,0,0,0.08); }
+
+/* Main content */
+.main { flex: 1; margin-left: 16rem; padding: 2rem 4rem; max-width: 900px; }
+
+/* Editor blocks */
+.block { padding: 0.25rem 0; position: relative; }
+.block:hover .block-toolbar { opacity: 1; }
+.block-toolbar { position: absolute; left: -40px; opacity: 0; transition: opacity 0.2s; }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; } }
+.animate-fade-in { animation: fadeIn 0.2s ease; }
+\`\`\`
+
+## DÉTAILS UX
+
+1. Empty state: "Aucune note trouvée" avec illustration ou emoji
+2. Confirmation avant suppression d'une page avec enfants
+3. Breadcrumb navigation pour pages nested
+4. Indicateur de sauvegarde "Sauvegardé ✓" qui apparaît/disparaît
+5. Smooth scroll au changement de page
+6. Focus auto sur le titre quand on crée une nouvelle page
+
+## CODE MINIMUM: 400+ lignes
+Le code DOIT être complet, fonctionnel, et impressionnant visuellement.`,
     description: 'Notes et docs avec édition riche'
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📋 KANBAN BOARD - Gestion de projets style Trello
+  // ════════════════════════════════════════════════════════════════════════════
   'kanban': {
     name: 'Tableau Kanban',
-    prompt: `Crée un tableau Kanban PROFESSIONNEL style Trello avec architecture MULTI-FICHIERS.
+    prompt: `Tu es un développeur senior React. Crée un tableau Kanban PROFESSIONNEL style Trello.
 
-⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
+## ARCHITECTURE OBLIGATOIRE
 
-FICHIERS À CRÉER (dans cet ordre):
+### Structure des composants
+\`\`\`
+App
+├── Header
+│   ├── Logo "📋 Mon Kanban"
+│   ├── BoardTitle (éditable)
+│   └── DarkModeToggle ☀️/🌙
+├── Board (horizontal scroll)
+│   ├── Column (répété pour chaque colonne)
+│   │   ├── ColumnHeader
+│   │   │   ├── Icon + Title (éditable)
+│   │   │   ├── CardCount badge
+│   │   │   └── ColumnMenu (rename, delete)
+│   │   ├── CardList (drop zone)
+│   │   │   └── Card (draggable)
+│   │   │       ├── ColorLabel (top bar)
+│   │   │       ├── CardTitle
+│   │   │       ├── CardDescription (preview)
+│   │   │       ├── Tags/Labels
+│   │   │       └── CardFooter (due date, assignee)
+│   │   └── AddCardButton
+│   └── AddColumnButton
+└── CardModal (overlay quand carte sélectionnée)
+    ├── ModalHeader (title, close)
+    ├── ModalBody
+    │   ├── DescriptionEditor
+    │   ├── LabelSelector
+    │   ├── DueDatePicker
+    │   └── ChecklistSection
+    └── ModalFooter (delete, archive)
+\`\`\`
 
-1. **/components/Card.js** - Carte de tâche draggable
-   - Affiche titre, description courte, label coloré
-   - draggable="true" avec onDragStart
-   - Bouton 🗑️ au hover pour supprimer
-   - Clic pour ouvrir modal édition
-   - Props: card, onDragStart, onDelete, onClick
+### État global
+\`\`\`javascript
+const [columns, setColumns] = useState([
+  {
+    id: 'todo',
+    title: '📋 À faire',
+    color: '#6366f1', // indigo
+    cards: [
+      {
+        id: 'card-1',
+        title: 'Finaliser le design',
+        description: 'Revoir les maquettes Figma et valider avec l\\'équipe',
+        label: 'red', // red, yellow, green, blue, purple
+        dueDate: '2024-02-15',
+        checklist: [
+          { id: 'c1', text: 'Maquette mobile', done: true },
+          { id: 'c2', text: 'Maquette desktop', done: false },
+        ],
+        createdAt: Date.now(),
+      },
+      {
+        id: 'card-2',
+        title: 'Écrire la documentation',
+        description: 'Documenter l\\'API et les composants',
+        label: 'yellow',
+        dueDate: null,
+        checklist: [],
+      },
+    ],
+  },
+  {
+    id: 'in-progress',
+    title: '🔄 En cours',
+    color: '#f59e0b', // amber
+    cards: [
+      {
+        id: 'card-3',
+        title: 'Développer l\\'API',
+        description: 'Endpoints REST pour le CRUD',
+        label: 'blue',
+        dueDate: '2024-02-10',
+        checklist: [
+          { id: 'c3', text: 'GET /tasks', done: true },
+          { id: 'c4', text: 'POST /tasks', done: true },
+          { id: 'c5', text: 'DELETE /tasks', done: false },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'done',
+    title: '✅ Terminé',
+    color: '#10b981', // emerald
+    cards: [
+      {
+        id: 'card-4',
+        title: 'Setup du projet',
+        description: 'Init React + Tailwind + tests',
+        label: 'green',
+        dueDate: '2024-02-01',
+        checklist: [],
+      },
+    ],
+  },
+])
+const [selectedCard, setSelectedCard] = useState(null) // Pour le modal
+const [draggedCard, setDraggedCard] = useState(null)
+const [dragOverColumn, setDragOverColumn] = useState(null)
+const [isDarkMode, setIsDarkMode] = useState(false)
+\`\`\`
 
-2. **/components/Column.js** - Colonne du Kanban
-   - Header avec titre + emoji + compteur badge
-   - Zone scrollable de cartes (utilise Card)
-   - Bouton "+ Ajouter" avec input inline
-   - onDragOver, onDrop pour recevoir cartes
-   - Props: title, emoji, cards, onDrop, onAddCard, onDeleteCard, onCardClick, onDragStart
+## DRAG & DROP NATIF (CRITIQUE!)
 
-3. **/components/Modal.js** - Modal d'édition de carte
-   - Overlay bg-black/50 position fixed
-   - Form: titre, description, sélecteur label (🔴🟡🟢)
-   - Boutons Sauvegarder / Annuler
-   - Props: card, onSave, onClose
+\`\`\`javascript
+// Sur la carte (draggable)
+<div
+  draggable="true"
+  onDragStart={(e) => {
+    setDraggedCard({ cardId: card.id, sourceColumnId: column.id })
+    e.dataTransfer.effectAllowed = 'move'
+    // Animation: réduire l'opacité
+    e.currentTarget.style.opacity = '0.5'
+  }}
+  onDragEnd={(e) => {
+    e.currentTarget.style.opacity = '1'
+    setDraggedCard(null)
+    setDragOverColumn(null)
+  }}
+  className={cn(
+    "bg-white dark:bg-slate-800 rounded-xl p-4 shadow-md cursor-grab",
+    "hover:shadow-lg transition-all duration-200",
+    "active:cursor-grabbing active:scale-105"
+  )}
+>
 
-4. **/components/Header.js** - Header de l'app
-   - Titre "📋 Mon Kanban" gradient
-   - Toggle dark mode ☀️/🌙
-   - Props: darkMode, onToggleDark
+// Sur la colonne (drop zone)
+<div
+  onDragOver={(e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverColumn(column.id)
+  }}
+  onDragLeave={() => setDragOverColumn(null)}
+  onDrop={(e) => {
+    e.preventDefault()
+    if (draggedCard && draggedCard.sourceColumnId !== column.id) {
+      moveCard(draggedCard.cardId, draggedCard.sourceColumnId, column.id)
+    }
+    setDragOverColumn(null)
+  }}
+  className={cn(
+    "min-h-[200px] p-2 rounded-lg transition-colors",
+    dragOverColumn === column.id && "bg-indigo-100 dark:bg-indigo-900/30"
+  )}
+>
+\`\`\`
 
-5. **/App.js** - Composant principal
-   - Importe Card, Column, Modal, Header
-   - State: tasks[], editingCard, darkMode
-   - 3 colonnes: "À faire", "En cours", "Terminé"
-   - localStorage: persister tasks
-   - Gestion drag & drop entre colonnes
+### Fonction moveCard
+\`\`\`javascript
+const moveCard = (cardId, sourceColId, targetColId) => {
+  setColumns(prev => {
+    const newColumns = [...prev]
+    const sourceCol = newColumns.find(c => c.id === sourceColId)
+    const targetCol = newColumns.find(c => c.id === targetColId)
+    
+    const cardIndex = sourceCol.cards.findIndex(c => c.id === cardId)
+    const [card] = sourceCol.cards.splice(cardIndex, 1)
+    targetCol.cards.push(card)
+    
+    return newColumns
+  })
+}
+\`\`\`
 
-DONNÉES INITIALES:
-- À faire: "Finaliser le design", "Écrire la doc"
-- En cours: "Développer l'API"
-- Terminé: "Setup du projet"
+## MODAL D'ÉDITION (CRITIQUE!)
 
-FONCTIONNALITÉS:
-- Drag & drop complet entre colonnes
-- CRUD cartes: créer, éditer (modal), supprimer
-- Labels: 🔴 urgent, 🟡 normal, 🟢 low
-- localStorage persistence
-- Compteurs par colonne
+\`\`\`javascript
+{selectedCard && (
+  <div 
+    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+    onClick={() => setSelectedCard(null)}
+  >
+    <div 
+      className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="p-6 border-b dark:border-slate-700">
+        <input
+          type="text"
+          value={selectedCard.title}
+          onChange={(e) => updateCard(selectedCard.id, { title: e.target.value })}
+          className="text-xl font-bold bg-transparent border-none focus:outline-none w-full"
+        />
+        <p className="text-sm text-gray-500 mt-1">
+          Dans la colonne: {getColumnForCard(selectedCard.id)?.title}
+        </p>
+      </div>
+      
+      {/* Body */}
+      <div className="p-6 space-y-6">
+        {/* Labels */}
+        <div>
+          <h3 className="font-semibold mb-2">🏷️ Label</h3>
+          <div className="flex gap-2">
+            {['red', 'yellow', 'green', 'blue', 'purple'].map(color => (
+              <button
+                key={color}
+                onClick={() => updateCard(selectedCard.id, { label: color })}
+                className={cn(
+                  "w-8 h-8 rounded-full transition-transform",
+                  selectedCard.label === color && "ring-2 ring-offset-2 scale-110",
+                  color === 'red' && "bg-red-500",
+                  color === 'yellow' && "bg-yellow-500",
+                  color === 'green' && "bg-green-500",
+                  color === 'blue' && "bg-blue-500",
+                  color === 'purple' && "bg-purple-500"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+        
+        {/* Description */}
+        <div>
+          <h3 className="font-semibold mb-2">📝 Description</h3>
+          <textarea
+            value={selectedCard.description}
+            onChange={(e) => updateCard(selectedCard.id, { description: e.target.value })}
+            placeholder="Ajouter une description..."
+            className="w-full p-3 border rounded-lg resize-none h-24 dark:bg-slate-700 dark:border-slate-600"
+          />
+        </div>
+        
+        {/* Due Date */}
+        <div>
+          <h3 className="font-semibold mb-2">📅 Date limite</h3>
+          <input
+            type="date"
+            value={selectedCard.dueDate || ''}
+            onChange={(e) => updateCard(selectedCard.id, { dueDate: e.target.value })}
+            className="p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600"
+          />
+        </div>
+        
+        {/* Checklist */}
+        <div>
+          <h3 className="font-semibold mb-2">☑️ Checklist</h3>
+          {selectedCard.checklist.map(item => (
+            <div key={item.id} className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                checked={item.done}
+                onChange={() => toggleChecklistItem(selectedCard.id, item.id)}
+              />
+              <span className={item.done ? 'line-through text-gray-400' : ''}>
+                {item.text}
+              </span>
+            </div>
+          ))}
+          <button 
+            onClick={() => addChecklistItem(selectedCard.id)}
+            className="text-sm text-indigo-500 hover:underline"
+          >
+            + Ajouter un item
+          </button>
+        </div>
+      </div>
+      
+      {/* Footer */}
+      <div className="p-6 border-t dark:border-slate-700 flex justify-between">
+        <button
+          onClick={() => deleteCard(selectedCard.id)}
+          className="text-red-500 hover:text-red-600"
+        >
+          🗑️ Supprimer
+        </button>
+        <button
+          onClick={() => setSelectedCard(null)}
+          className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+\`\`\`
 
-STYLE PREMIUM:
-- Fond: bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900
-- Colonnes: bg-white/10 backdrop-blur-sm rounded-2xl
-- Cartes: bg-white rounded-xl shadow-lg cursor-grab
-- Animation drag: opacity-50 scale-105`,
+## STYLES PREMIUM
+
+\`\`\`css
+/* Fond dégradé sombre style Trello/Linear */
+.board-bg {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  min-height: 100vh;
+}
+
+/* Colonnes glassmorphism */
+.column {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  min-width: 300px;
+  max-width: 300px;
+}
+
+/* Cartes avec micro-interactions */
+.card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+.card:active {
+  transform: scale(1.02);
+  cursor: grabbing;
+}
+
+/* Label bar en haut de carte */
+.card-label {
+  height: 6px;
+  border-radius: 6px 6px 0 0;
+}
+
+/* Animation d'entrée des cartes */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card { animation: slideIn 0.2s ease; }
+
+/* Drop zone highlight */
+.drop-zone-active {
+  background: rgba(99, 102, 241, 0.2);
+  border: 2px dashed #6366f1;
+}
+\`\`\`
+
+## FONCTIONNALITÉS BONUS
+
+1. **Compteur de cartes** sur chaque colonne header
+2. **Progression checklist** (2/5 items) affichée sur la carte
+3. **Tri des cartes** par date ou priorité
+4. **Recherche/filtre** des cartes
+5. **Ajout de colonne** avec "+ Ajouter une colonne"
+6. **Renommer colonne** en double-cliquant
+
+## localStorage Persistence
+\`\`\`javascript
+useEffect(() => {
+  const saved = localStorage.getItem('kanban-columns')
+  if (saved) setColumns(JSON.parse(saved))
+}, [])
+
+useEffect(() => {
+  localStorage.setItem('kanban-columns', JSON.stringify(columns))
+}, [columns])
+\`\`\`
+
+## CODE MINIMUM: 500+ lignes
+Le résultat doit être IMPRESSIONNANT. Un débutant doit dire "WOW c'est une vraie app!"`,
     description: 'Gestion de projets en colonnes'
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ✅ TASK MANAGER - Gestionnaire de tâches avancé
+  // ════════════════════════════════════════════════════════════════════════════
   'task-manager': {
     name: 'Gestionnaire de tâches',
-    prompt: `Crée un gestionnaire de tâches complet avec TOUTES ces fonctionnalités (250+ lignes minimum):
+    prompt: `Tu es un développeur senior React. Crée un gestionnaire de tâches PROFESSIONNEL.
 
-STRUCTURE:
-- Header avec titre, compteur de tâches, filtres
-- Liste de tâches avec checkbox, titre, priorité, date, actions
-- Footer avec stats
+## ARCHITECTURE
 
-FONCTIONNALITÉS OBLIGATOIRES:
-1. CRUD: ajouter tâche avec titre + priorité + date
-2. Priorités: haute (rouge), moyenne (jaune), basse (vert)
-3. Filtres: Toutes / Actives / Complétées / Par priorité
-4. Tri: par date ou priorité
-5. Complétion: checkbox qui barre le texte
-6. localStorage: persister
-7. Dates limites: affichage et warning si passée
+### Structure
+\`\`\`
+App
+├── Header
+│   ├── Title "✅ Mes Tâches"
+│   ├── Stats (total, completed, pending)
+│   └── DarkModeToggle
+├── FilterBar
+│   ├── FilterTabs (Toutes | Actives | Terminées)
+│   ├── PriorityFilter (Dropdown: Toutes, Haute, Moyenne, Basse)
+│   ├── SortButton (Date | Priorité)
+│   └── SearchInput
+├── AddTaskForm
+│   ├── TitleInput
+│   ├── PrioritySelect
+│   ├── DatePicker
+│   └── AddButton
+└── TaskList
+    └── TaskItem
+        ├── Checkbox
+        ├── PriorityBadge (🔴/🟡/🟢)
+        ├── Title (barré si done)
+        ├── DueDate (rouge si passée)
+        ├── EditButton
+        └── DeleteButton
+\`\`\`
 
-STYLE:
-- Tâches en cartes avec padding et hover
-- Badges de priorité colorés
-- Date en rouge si dépassée`,
+### État
+\`\`\`javascript
+const [tasks, setTasks] = useState([
+  { id: '1', title: 'Préparer la présentation', priority: 'high', dueDate: '2024-02-10', done: false },
+  { id: '2', title: 'Répondre aux emails', priority: 'medium', dueDate: '2024-02-08', done: true },
+  { id: '3', title: 'Faire les courses', priority: 'low', dueDate: null, done: false },
+  { id: '4', title: 'Appeler le client', priority: 'high', dueDate: '2024-02-05', done: false },
+])
+const [filter, setFilter] = useState('all') // all, active, completed
+const [priorityFilter, setPriorityFilter] = useState('all')
+const [sortBy, setSortBy] = useState('date') // date, priority
+const [search, setSearch] = useState('')
+\`\`\`
+
+## FONCTIONNALITÉS
+
+1. **CRUD complet** avec animations
+2. **Filtres combinables** (statut + priorité + recherche)
+3. **Tri** par date ou priorité
+4. **Date limite** avec warning visuel si passée
+5. **Badges priorité**: 🔴 Haute, 🟡 Moyenne, 🟢 Basse
+6. **Statistiques en temps réel**
+7. **localStorage** persistence
+
+## STYLES
+- Cards avec shadow et hover effect
+- Animations slide-in pour nouvelles tâches
+- Transition strikethrough sur completion
+- Fond gradient subtil
+- Responsive mobile-first
+
+CODE MINIMUM: 300+ lignes`,
     description: 'Suivi des tâches et projets'
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📊 PROJECT DASHBOARD
+  // ════════════════════════════════════════════════════════════════════════════
   'project-dashboard': {
     name: 'Dashboard Projet',
-    prompt: `Crée un dashboard projet pro avec architecture MULTI-FICHIERS.
+    prompt: `Crée un dashboard projet professionnel avec:
 
-⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
+## STRUCTURE
+- Sidebar navigation (Dashboard, Projets, Équipe, Paramètres)
+- Header avec avatar utilisateur et notifications
+- 4 stat cards animées (Projets actifs, Tâches terminées, Heures, Membres)
+- Tableau de projets avec progress bars
+- Graphique de progression (barres simples en CSS)
 
-FICHIERS À CRÉER (dans cet ordre):
+## DONNÉES INITIALES
+\`\`\`javascript
+const [projects] = useState([
+  { id: '1', name: 'Refonte Site Web', status: 'active', progress: 75, team: ['👨‍💻', '👩‍🎨'], dueDate: '2024-03-01' },
+  { id: '2', name: 'App Mobile', status: 'active', progress: 45, team: ['👨‍💻', '👩‍💻', '🧑‍🔬'], dueDate: '2024-04-15' },
+  { id: '3', name: 'API Backend', status: 'completed', progress: 100, team: ['🧑‍💻'], dueDate: '2024-01-20' },
+])
+\`\`\`
 
-1. **/components/Sidebar.js** - Navigation latérale
-   - Logo/titre de l'app
-   - Menu: Dashboard, Projets, Équipe, Paramètres
-   - Item actif highlighté
-   - Collapse sur mobile (hamburger)
-   - Props: activeItem, onNavigate, collapsed, onToggle
+## STYLE
+- Sidebar sombre, contenu clair
+- Progress bars avec gradients
+- Avatars empilés avec overlap
+- Hover effects sur les lignes
+- Responsive avec sidebar collapse
 
-2. **/components/StatCard.js** - Carte de statistique
-   - Icône emoji, titre, valeur, variation
-   - Couleur selon type (vert/rouge/bleu)
-   - Props: icon, title, value, change, color
-
-3. **/components/ProjectTable.js** - Tableau des projets
-   - Colonnes: nom, statut, progression, équipe, actions
-   - Barre de progression colorée
-   - Avatars empilés pour l'équipe
-   - Actions: voir, éditer, supprimer
-   - Props: projects, onAction
-
-4. **/components/Header.js** - Header de page
-   - Titre de la page courante
-   - Avatar utilisateur avec dropdown
-   - Bouton notifications 🔔
-   - Props: title, user
-
-5. **/App.js** - Layout principal
-   - Importe tous les composants
-   - State: activePage, projects[], collapsed
-   - Layout: sidebar + main content
-   - 4 StatCards en grid
-   - ProjectTable avec données
-
-DONNÉES INITIALES:
-- Projets: "Site e-commerce" (75%), "App Mobile" (40%), "API Backend" (100%)
-- Stats: 12 projets actifs, 48 tâches, 32h cette semaine, 8 membres
-
-STYLE:
-- Sidebar: bg-gray-900 text-white w-64
-- Contenu: bg-gray-50
-- Cards: bg-white shadow-md rounded-xl
-- Table: hover sur les lignes`,
+CODE MINIMUM: 350+ lignes`,
     description: 'Vue d\'ensemble des projets'
   },
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ☑️ TODO APP - Simple mais élégante
+  // ════════════════════════════════════════════════════════════════════════════
   'todo-app': {
     name: 'Todo App',
-    prompt: `Crée une Todo App complète et belle avec TOUTES ces fonctionnalités (200+ lignes minimum):
+    prompt: `Crée une Todo App MAGNIFIQUE et complète.
 
-STRUCTURE:
-- Container centré avec max-w-md
-- Header avec titre et compteur
-- Input + bouton ajouter
-- Filtres: Toutes / Actives / Complétées
-- Liste des tâches
-- Footer avec actions
+## STRUCTURE
+\`\`\`
+App (max-w-md mx-auto, fond gradient)
+├── Header
+│   ├── Title "☑️ Ma Todo List"
+│   ├── Date du jour
+│   └── Compteur (X tâches restantes)
+├── AddTodo
+│   ├── Input (placeholder: "Ajouter une tâche...")
+│   └── Button "+" (cercle, hover animation)
+├── FilterTabs
+│   ├── Toutes (badge count)
+│   ├── Actives (badge count)
+│   └── Terminées (badge count)
+├── TodoList
+│   └── TodoItem
+│       ├── Checkbox (cercle custom)
+│       ├── Text (strikethrough si done)
+│       ├── EditButton (✏️)
+│       └── DeleteButton (🗑️)
+└── Footer
+    ├── "X items restants"
+    └── "Supprimer terminées" (si > 0 done)
+\`\`\`
 
-FONCTIONNALITÉS OBLIGATOIRES:
-1. Ajouter tâche: input + bouton avec onClick={() => addTodo()}
-2. Supprimer: bouton 🗑️ avec onClick={() => deleteTodo(id)}
-3. Toggle complété: checkbox qui barre le texte
-4. Édition: double-clic pour éditer inline
-5. Filtres fonctionnels
-6. localStorage: persister
-7. "Supprimer terminées": vider les complétées
+## DONNÉES
+\`\`\`javascript
+const [todos, setTodos] = useState([
+  { id: '1', text: 'Apprendre React', done: true },
+  { id: '2', text: 'Créer une super app', done: false },
+  { id: '3', text: 'Devenir un pro', done: false },
+])
+\`\`\`
 
-STYLE:
-- Fond gradient (from-purple-500 to-pink-500)
-- Carte blanche avec shadow-xl
-- Animations sur les items
-- Hover states partout`,
+## ANIMATIONS
+- Slide-in pour nouvelles tâches
+- Fade-out pour suppression
+- Bounce sur checkbox
+- Strikethrough animé
+
+## STYLE
+\`\`\`css
+.app-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 2rem; }
+.card { background: white; border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+.checkbox { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ddd; transition: all 0.2s; }
+.checkbox.checked { background: linear-gradient(135deg, #667eea, #764ba2); border-color: transparent; }
+\`\`\`
+
+CODE MINIMUM: 250+ lignes`,
     description: 'Liste de tâches simple'
   },
+
+  // Autres templates avec prompts améliorés
   'chat-app': {
     name: 'Chat d\'équipe',
-    prompt: 'Create a Slack-like team chat with: channel sidebar, message list with avatars, message input with emoji, and channel creation. Modern chat UI.',
+    prompt: `Crée un chat d'équipe style Slack avec:
+
+## STRUCTURE
+- Sidebar avec liste des channels (#général, #random, #dev)
+- Zone de messages avec avatars, timestamps, réactions
+- Input avec bouton emoji et envoi
+- Header avec nom du channel et membres en ligne
+
+## DONNÉES INITIALES
+Pré-remplis avec des messages de démonstration entre utilisateurs fictifs.
+
+## STYLE
+- Messages groupés par utilisateur
+- Hover pour afficher actions (réagir, répondre)
+- Indicateur "typing..."
+- Scroll auto en bas
+- Dark mode support
+
+CODE MINIMUM: 300+ lignes`,
     description: 'Messagerie instantanée'
   },
   'support-chat': {
     name: 'Support Client',
-    prompt: 'Create a customer support chat widget and dashboard with: visitor list, conversation view, canned responses, and status indicators.',
+    prompt: 'Create a customer support chat widget and dashboard with: visitor list, conversation view, canned responses, and status indicators. Include mock conversations.',
     description: 'Widget de chat support'
   },
   'live-chat': {
@@ -459,7 +1030,18 @@ STYLE:
   },
   'email-sender': {
     name: 'Email Marketing',
-    prompt: 'Create an email marketing dashboard with: campaign list, email composer with templates, subscriber management, and basic analytics.',
+    prompt: `Crée un dashboard email marketing avec:
+
+## FONCTIONNALITÉS
+- Liste des campagnes (draft, sent, scheduled)
+- Éditeur d'email avec preview
+- Statistiques (opens, clicks, bounces)
+- Liste de contacts avec tags
+
+## DONNÉES
+Pré-remplir avec 3 campagnes et stats fictives.
+
+CODE MINIMUM: 300+ lignes`,
     description: 'Campagnes email'
   },
   'newsletter': {
@@ -474,12 +1056,51 @@ STYLE:
   },
   'link-in-bio': {
     name: 'Page de liens',
-    prompt: 'Create a Linktree-style link in bio page with: customizable profile, link list with icons, theme customization, and mobile preview.',
+    prompt: `Crée une page Linktree avec:
+
+## FONCTIONNALITÉS
+- Profile header (photo, nom, bio)
+- Liste de liens personnalisables avec icônes
+- Thèmes (couleurs, fonts)
+- Preview mobile en temps réel
+- Analytics (clicks par lien)
+
+## STYLE
+- Centré, mobile-first
+- Boutons arrondis avec hover
+- Animations subtiles
+
+CODE MINIMUM: 250+ lignes`,
     description: 'Page de liens personnalisée'
   },
   'analytics-dashboard': {
     name: 'Dashboard Analytics',
-    prompt: 'Create an analytics dashboard with: visitor charts, heatmap visualization mockup, session recordings list, and key metrics cards.',
+    prompt: `Crée un dashboard analytics avec:
+
+## WIDGETS
+- Stat cards (visiteurs, sessions, bounce rate, durée moyenne)
+- Graphique de visiteurs (derniers 7 jours, barres CSS)
+- Top pages tableau
+- Sources de trafic (pie chart en CSS)
+- Heatmap grid (mockup)
+
+## DONNÉES
+\`\`\`javascript
+const [stats] = useState({
+  visitors: 12847,
+  sessions: 18293,
+  bounceRate: 42.3,
+  avgDuration: '2m 34s',
+  dailyVisitors: [320, 450, 380, 520, 490, 610, 580],
+  topPages: [
+    { path: '/', views: 4521 },
+    { path: '/pricing', views: 2341 },
+    { path: '/features', views: 1876 },
+  ]
+})
+\`\`\`
+
+CODE MINIMUM: 300+ lignes`,
     description: 'Visualisation des données'
   },
   'event-analytics': {
@@ -499,57 +1120,24 @@ STYLE:
   },
   'crm-dashboard': {
     name: 'CRM Dashboard',
-    prompt: `Crée un CRM dashboard professionnel avec architecture MULTI-FICHIERS.
+    prompt: `Crée un CRM dashboard avec:
 
-⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
+## STRUCTURE
+- Sidebar navigation
+- Stats cards (Contacts, Deals, Revenue, Tasks)
+- Pipeline visuel (colonnes: Lead → Qualified → Proposal → Won)
+- Tableau contacts récents
+- Activity timeline
 
-FICHIERS À CRÉER (dans cet ordre):
+## DONNÉES INITIALES
+\`\`\`javascript
+const [contacts] = useState([
+  { id: '1', name: 'Marie Dupont', company: 'TechCorp', status: 'qualified', value: 15000 },
+  { id: '2', name: 'Jean Martin', company: 'StartupX', status: 'lead', value: 8000 },
+])
+\`\`\`
 
-1. **/components/Sidebar.js** - Navigation CRM
-   - Menu: Dashboard, Contacts, Deals, Activités
-   - Badge avec compteurs
-   - Props: activeItem, onNavigate, counts
-
-2. **/components/ContactList.js** - Liste des contacts
-   - Avatar, nom, email, entreprise
-   - Tags (Lead, Client, VIP)
-   - Actions: appeler, email, voir
-   - Recherche
-   - Props: contacts, onAction, searchQuery, onSearch
-
-3. **/components/DealPipeline.js** - Pipeline de ventes
-   - 4 colonnes: Prospect, Négociation, Proposition, Gagné
-   - Cartes de deals draggables
-   - Montant et probabilité
-   - Props: deals, onMove, onSelect
-
-4. **/components/ActivityTimeline.js** - Timeline des activités
-   - Liste chronologique des actions
-   - Types: appel, email, rdv, note
-   - Date relative (il y a 2h)
-   - Props: activities
-
-5. **/components/StatCard.js** - Métriques
-   - Chiffre d'affaires, deals en cours, taux conversion, contacts
-   - Props: icon, label, value, trend
-
-6. **/App.js** - Layout principal
-   - Importe tous les composants
-   - State: contacts[], deals[], activities[], activePage
-   - localStorage persistence
-   - Layout: sidebar + dashboard
-
-DONNÉES INITIALES:
-- 5 contacts (Lead, Client, VIP)
-- 4 deals dans différentes étapes
-- 6 activités récentes
-- Stats: 45k€ CA, 12 deals, 68% conversion
-
-STYLE B2B PRO:
-- Couleurs: bleu primaire, gris neutres
-- Cards avec shadow et rounded-xl
-- Typographie clean et lisible
-- Badges colorés pour les statuts`,
+CODE MINIMUM: 350+ lignes`,
     description: 'Gestion des contacts'
   },
   'sales-pipeline': {
@@ -564,12 +1152,57 @@ STYLE B2B PRO:
   },
   'booking-calendar': {
     name: 'Calendrier RDV',
-    prompt: 'Create a booking calendar app with: availability settings, calendar view, booking form, and appointments list. Clean scheduling UX.',
+    prompt: `Crée un système de booking style Calendly avec:
+
+## STRUCTURE
+- Vue semaine avec créneaux disponibles
+- Formulaire de configuration (durée RDV, horaires)
+- Page de réservation publique
+- Liste des RDV à venir
+
+## DONNÉES
+\`\`\`javascript
+const [availability] = useState({
+  monday: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
+  tuesday: ['09:00', '10:00', '14:00', '15:00'],
+  // ...
+})
+const [bookings] = useState([
+  { id: '1', date: '2024-02-10', time: '10:00', name: 'Jean', email: 'jean@mail.com' },
+])
+\`\`\`
+
+CODE MINIMUM: 300+ lignes`,
     description: 'Prise de rendez-vous'
   },
   'invoice-app': {
     name: 'Facturation',
-    prompt: 'Create an invoice app with: invoice list, invoice creator with line items, client management, and payment status tracking.',
+    prompt: `Crée une app de facturation avec:
+
+## FONCTIONNALITÉS
+- Liste des factures (draft, sent, paid, overdue)
+- Créateur de facture avec ligne items
+- Calcul automatique (sous-total, TVA, total)
+- PDF preview
+- Gestion clients
+
+## DONNÉES
+\`\`\`javascript
+const [invoices] = useState([
+  {
+    id: 'INV-001',
+    client: 'TechCorp',
+    items: [
+      { description: 'Développement web', qty: 10, price: 500 },
+      { description: 'Design UI/UX', qty: 5, price: 400 },
+    ],
+    status: 'paid',
+    date: '2024-01-15',
+  },
+])
+\`\`\`
+
+CODE MINIMUM: 350+ lignes`,
     description: 'Création de factures'
   },
   'accounting': {
