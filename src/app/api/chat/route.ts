@@ -244,6 +244,9 @@ export async function POST(req: NextRequest) {
     
     // Use currentFiles from frontend if provided, otherwise use database
     const codeFiles = currentFiles || (app?.files as Record<string, string>) || {}
+    
+    // Determine if this is a new app (no files yet) - used to force tool usage
+    const isNewApp = toolsEnabled && Object.keys(codeFiles).length === 0
 
     // Build system prompt with context + tools
     let systemPrompt = SYSTEM_PROMPT
@@ -334,6 +337,7 @@ export async function POST(req: NextRequest) {
               chatMessages,
               toolContext,
               enableTools: toolsEnabled,
+              isNewApp,
               send,
               onTokens: (input, output) => {
                 inputTokens += input
@@ -351,6 +355,7 @@ export async function POST(req: NextRequest) {
               chatMessages,
               toolContext,
               enableTools: toolsEnabled,
+              isNewApp,
               send,
               onTokens: (input, output) => {
                 inputTokens += input
@@ -360,6 +365,14 @@ export async function POST(req: NextRequest) {
                 fullContent += text
               },
               onWriteTool,
+            })
+          }
+          
+          // BUG FIX #3: Validate that tools were used for new apps
+          if (isNewApp && !toolsWereUsed) {
+            send('warning', {
+              message: 'L\'IA n\'a pas créé de fichiers. Reformulez votre demande ou réessayez.',
+              code: 'NO_FILES_CREATED',
             })
           }
 
@@ -473,6 +486,7 @@ interface StreamOptions {
   chatMessages: ChatMessage[]
   toolContext: ToolContext | null
   enableTools: boolean
+  isNewApp: boolean  // Force tool usage for new apps
   send: (type: string, data: any) => void
   onTokens: (input: number, output: number) => void
   onContent: (text: string) => void
@@ -486,7 +500,8 @@ async function streamAnthropicWithTools(options: StreamOptions) {
     systemPrompt, 
     chatMessages, 
     toolContext, 
-    enableTools, 
+    enableTools,
+    isNewApp,
     send, 
     onTokens, 
     onContent,
@@ -495,6 +510,11 @@ async function streamAnthropicWithTools(options: StreamOptions) {
 
   const anthropic = new Anthropic({ apiKey })
   const tools = enableTools ? toAnthropicTools() : undefined
+  
+  // BUG FIX #2: Force write_file tool for new apps, otherwise auto
+  const toolChoice = enableTools 
+    ? (isNewApp ? { type: 'tool' as const, name: 'write_file' } : { type: 'auto' as const })
+    : undefined
   
   // Build conversation messages
   let conversationMessages: Anthropic.MessageParam[] = chatMessages
@@ -524,6 +544,7 @@ async function streamAnthropicWithTools(options: StreamOptions) {
       system: systemPrompt,
       messages: conversationMessages,
       tools,
+      tool_choice: toolChoice,
       stream: true,
     })
 
@@ -668,13 +689,14 @@ async function streamAnthropicWithTools(options: StreamOptions) {
 
     const results = await executeTools(toolCalls, toolContext)
 
-    // Send results to client
+    // Send results to client (BUG FIX #1: null check on results)
     for (const result of results) {
+      if (!result) continue
       send('tool_result', {
         toolCallId: result.toolCallId,
         success: result.success,
         output: result.output,
-        error: result.error,
+        error: result.error ?? null,
       })
     }
     
@@ -687,8 +709,9 @@ async function streamAnthropicWithTools(options: StreamOptions) {
       onWriteTool()
     }
 
-    // Format results for API
-    const formattedResults = formatAnthropicToolResults(results)
+    // Format results for API (filter out null results)
+    const validResults = results.filter((r): r is ToolResult => r !== null && r !== undefined)
+    const formattedResults = formatAnthropicToolResults(validResults)
 
     // Add tool results to conversation
     conversationMessages.push({
@@ -706,6 +729,7 @@ interface OpenAIStreamOptions {
   chatMessages: ChatMessage[]
   toolContext: ToolContext | null
   enableTools: boolean
+  isNewApp: boolean  // Force tool usage for new apps
   send: (type: string, data: any) => void
   onTokens: (input: number, output: number) => void
   onContent: (text: string) => void
@@ -718,7 +742,8 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
     apiModelName, 
     chatMessages, 
     toolContext, 
-    enableTools, 
+    enableTools,
+    isNewApp,
     send, 
     onTokens, 
     onContent,
@@ -728,7 +753,12 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
   console.log('[OpenAI] Initializing with key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO KEY')
   const openai = new OpenAI({ apiKey })
   const tools = enableTools ? toOpenAITools() : undefined
-  console.log('[OpenAI] Tools enabled:', enableTools, 'Model:', apiModelName)
+  console.log('[OpenAI] Tools enabled:', enableTools, 'isNewApp:', isNewApp, 'Model:', apiModelName)
+  
+  // BUG FIX #2: Force write_file tool for new apps, otherwise auto
+  const toolChoice = enableTools 
+    ? (isNewApp ? { type: 'function' as const, function: { name: 'write_file' } } : 'auto' as const)
+    : undefined
 
   // Build conversation
   let conversationMessages: OpenAI.ChatCompletionMessageParam[] = chatMessages.map(m => ({
@@ -751,7 +781,7 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
         model: apiModelName,
         messages: conversationMessages,
         tools,
-        tool_choice: enableTools ? 'auto' : undefined,
+        tool_choice: toolChoice,
         stream: true,
         stream_options: { include_usage: true },
         temperature: 0.7,
@@ -873,13 +903,14 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
 
     const results = await executeTools(parsedToolCalls, toolContext)
 
-    // Send results to client
+    // Send results to client (BUG FIX #1: null check on results)
     for (const result of results) {
+      if (!result) continue
       send('tool_result', {
         toolCallId: result.toolCallId,
         success: result.success,
         output: result.output,
-        error: result.error,
+        error: result.error ?? null,
       })
     }
     
@@ -892,8 +923,9 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
       onWriteTool()
     }
 
-    // Add tool results to conversation
-    const formattedResults = formatOpenAIToolResults(results)
+    // Add tool results to conversation (filter out null results)
+    const validResults = results.filter((r): r is ToolResult => r !== null && r !== undefined)
+    const formattedResults = formatOpenAIToolResults(validResults)
     for (const result of formattedResults) {
       conversationMessages.push(result as OpenAI.ChatCompletionToolMessageParam)
     }
