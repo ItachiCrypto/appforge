@@ -209,10 +209,7 @@ export default function AppEditorPage() {
 
   // Handle "Fix with AI" button - sends error to chat
   // BUG FIX: Use ref to avoid stale closure - handleSend changes frequently
-  const handleSendRef = useRef(handleSend)
-  useEffect(() => {
-    handleSendRef.current = handleSend
-  })
+  const handleSendRef = useRef<((text?: string) => Promise<void>) | null>(null)
 
   const handleFixWithAI = useCallback((error: PreviewError) => {
     const errorContext = [
@@ -229,7 +226,9 @@ export default function AppEditorPage() {
     ].filter(Boolean).join('\n')
 
     // Send as a user message to the AI - use ref to get latest handleSend
-    void handleSendRef.current(errorContext)
+    if (handleSendRef.current) {
+      void handleSendRef.current(errorContext)
+    }
     setLastPreviewError(null)
   }, [])
 
@@ -513,6 +512,11 @@ export default function AppEditorPage() {
       abortControllerRef.current = null
     }
   }
+
+  // BUG FIX: Update ref after handleSend is defined (avoids stale closure in handleFixWithAI)
+  useEffect(() => {
+    handleSendRef.current = handleSend
+  })
 
   const handleDeploy = async () => {
     setIsDeploying(true)
