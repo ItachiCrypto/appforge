@@ -43,9 +43,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       return (
         <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-muted/30 rounded-lg">
           <AlertTriangle className="w-10 h-10 text-amber-500 mb-3" />
-          <h3 className="font-medium text-lg mb-1">Something went wrong</h3>
+          <h3 className="font-medium text-lg mb-1">Oups, une erreur est survenue</h3>
           <p className="text-sm text-muted-foreground mb-4 max-w-md">
-            {this.state.error?.message || 'An unexpected error occurred'}
+            {this.state.error?.message || 'Une erreur inattendue est survenue'}
           </p>
           <Button 
             variant="outline" 
@@ -53,7 +53,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             onClick={this.handleReset}
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Try again
+            Réessayer
           </Button>
         </div>
       )
@@ -74,9 +74,9 @@ export function ErrorFallback({ error, message, onRetry }: ErrorFallbackProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-muted/30 rounded-lg">
       <AlertTriangle className="w-10 h-10 text-amber-500 mb-3" />
-      <h3 className="font-medium text-lg mb-1">Something went wrong</h3>
+      <h3 className="font-medium text-lg mb-1">Oups, une erreur est survenue</h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-md">
-        {message || error?.message || 'An unexpected error occurred'}
+        {message || error?.message || 'Une erreur inattendue est survenue'}
       </p>
       {onRetry && (
         <Button 
@@ -85,7 +85,7 @@ export function ErrorFallback({ error, message, onRetry }: ErrorFallbackProps) {
           onClick={onRetry}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
-          Try again
+          Réessayer
         </Button>
       )}
     </div>
