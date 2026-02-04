@@ -208,6 +208,12 @@ export default function AppEditorPage() {
   }, [])
 
   // Handle "Fix with AI" button - sends error to chat
+  // BUG FIX: Use ref to avoid stale closure - handleSend changes frequently
+  const handleSendRef = useRef(handleSend)
+  useEffect(() => {
+    handleSendRef.current = handleSend
+  })
+
   const handleFixWithAI = useCallback((error: PreviewError) => {
     const errorContext = [
       `🔴 **Erreur ${error.type === 'compile' ? 'de compilation' : 'runtime'} détectée dans le preview:**`,
@@ -222,8 +228,8 @@ export default function AppEditorPage() {
       '**Peux-tu analyser cette erreur et corriger le code ?**'
     ].filter(Boolean).join('\n')
 
-    // Send as a user message to the AI
-    void handleSend(errorContext)
+    // Send as a user message to the AI - use ref to get latest handleSend
+    void handleSendRef.current(errorContext)
     setLastPreviewError(null)
   }, [])
 

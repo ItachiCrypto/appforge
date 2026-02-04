@@ -505,8 +505,11 @@ export function Preview({
   const mergedFiles = { ...defaultFiles, ...normalizedFiles }
 
   // Common Sandpack setup with Tailwind CSS via CDN
+  // BUG FIX: Add lucide-react to dependencies so AI-generated code works
   const sandpackSetup = {
-    dependencies: {},
+    dependencies: {
+      "lucide-react": "latest",
+    },
   }
 
   // Rendu du preview selon le type
