@@ -28,6 +28,7 @@ export type AppType = 'WEB' | 'IOS' | 'ANDROID' | 'DESKTOP' | 'API'
 
 /**
  * Clean up code for Sandpack compatibility:
+ * - Ensure paths start with /
  * - Convert .tsx/.ts to .js
  * - Remove problematic imports (tailwind css files, etc.)
  */
@@ -35,16 +36,17 @@ export function normalizeFilesForSandpack(files: Record<string, string>): Record
   const normalized: Record<string, string> = {}
   
   for (const [path, content] of Object.entries(files)) {
-    let normalizedPath = path
+    // FIX: Ensure path starts with / for Sandpack compatibility
+    let normalizedPath = path.startsWith('/') ? path : '/' + path
     let normalizedContent = content || ''
     
     // Convert TypeScript extensions to JS for Sandpack react template
-    if (path === '/App.tsx' || path === '/App.ts') {
+    if (normalizedPath === '/App.tsx' || normalizedPath === '/App.ts') {
       normalizedPath = '/App.js'
-    } else if (path.endsWith('.tsx')) {
-      normalizedPath = path.replace(/\.tsx$/, '.js')
-    } else if (path.endsWith('.ts') && !path.endsWith('.d.ts')) {
-      normalizedPath = path.replace(/\.ts$/, '.js')
+    } else if (normalizedPath.endsWith('.tsx')) {
+      normalizedPath = normalizedPath.replace(/\.tsx$/, '.js')
+    } else if (normalizedPath.endsWith('.ts') && !normalizedPath.endsWith('.d.ts')) {
+      normalizedPath = normalizedPath.replace(/\.ts$/, '.js')
     }
     
     // Remove problematic imports that Sandpack can't resolve
