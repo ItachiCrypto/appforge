@@ -78,7 +78,14 @@ export default function AppEditorPage() {
   const initialPrompt = searchParams.get('prompt')
   
   // Editor mode from store
-  const { mode } = useEditorStore()
+  const { mode, setMode } = useEditorStore()
+  
+  // UX FIX: Force Normal mode when arriving with initial prompt (new app creation)
+  useEffect(() => {
+    if (initialPrompt && mode === 'expert') {
+      setMode('normal')
+    }
+  }, [initialPrompt, mode, setMode])
   
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')

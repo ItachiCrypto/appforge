@@ -145,13 +145,13 @@ export function NormalLayout({
         </Button>
       )}
 
-      {/* Chat Drawer/Sidebar */}
+      {/* Chat Drawer/Sidebar - Réduit pour ne pas masquer la preview */}
       <div
         className={cn(
           "absolute right-0 top-0 bottom-0 bg-background border-l shadow-xl",
           "transition-all duration-300 ease-in-out flex flex-col",
           isChatOpen ? "translate-x-0" : "translate-x-full",
-          isChatExpanded ? "w-[600px]" : "w-[380px]"
+          isChatExpanded ? "w-[500px]" : "w-[320px]"
         )}
       >
         {/* Chat Header */}
