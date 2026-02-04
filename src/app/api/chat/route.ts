@@ -289,11 +289,19 @@ export async function POST(req: NextRequest) {
     let fullContent = ''
     let inputTokens = 0
     let outputTokens = 0
+    // FIX BUG #14: Track if write tools were actually used
+    let toolsWereUsed = false
 
     const stream = new ReadableStream({
       async start(controller) {
         const send = (type: string, data: any) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type, ...data })}\n\n`))
+          
+          // FIX BUG #14: Track successful write tool calls
+          if (data.type === 'tool_result' && data.success) {
+            // Check if this was a write operation by looking at the tool name from previous tool_call
+            // This is handled via the onWriteTool callback instead
+          }
         }
 
         // DEBUG: Log tools status
@@ -313,6 +321,11 @@ export async function POST(req: NextRequest) {
         })
 
         try {
+          // FIX BUG #14: Callback to track write tool usage
+          const onWriteTool = () => {
+            toolsWereUsed = true
+          }
+          
           if (isAnthropicModel) {
             await streamAnthropicWithTools({
               apiKey,
@@ -329,6 +342,7 @@ export async function POST(req: NextRequest) {
               onContent: (text) => {
                 fullContent += text
               },
+              onWriteTool,
             })
           } else {
             await streamOpenAIWithTools({
@@ -345,16 +359,18 @@ export async function POST(req: NextRequest) {
               onContent: (text) => {
                 fullContent += text
               },
+              onWriteTool,
             })
           }
 
-          // Parse code from text OR fetch from DB if tools were used
+          // Parse code from text (legacy fallback for non-tool mode)
           let codeOutput = parseCodeBlocks(fullContent)
           
-          // FIX BUG #7: ALWAYS return DB files as source of truth
-          // The AI tools write directly to DB, so DB is always the canonical state.
-          // Don't compare with originalFiles - just return what's in DB.
-          if (appId) {
+          // FIX BUG #7 + FIX BUG #14: Only return DB files if write tools were used
+          // The toolsWereUsed flag is set by the streaming functions when write_file/update_file
+          // tools are successfully executed. Only then should we fetch DB files.
+          // This prevents "Code mis à jour !" from appearing when AI doesn't call tools.
+          if (appId && toolsWereUsed) {
             const updatedApp = await prisma.app.findUnique({
               where: { id: appId },
               select: { files: true },
@@ -362,7 +378,7 @@ export async function POST(req: NextRequest) {
             if (updatedApp?.files && typeof updatedApp.files === 'object') {
               const dbFiles = updatedApp.files as Record<string, string>
               if (Object.keys(dbFiles).length > 0) {
-                // DB is source of truth - always return current DB state
+                // DB is source of truth - return current DB state only after write operations
                 codeOutput = { files: dbFiles }
               }
             }
@@ -460,6 +476,7 @@ interface StreamOptions {
   send: (type: string, data: any) => void
   onTokens: (input: number, output: number) => void
   onContent: (text: string) => void
+  onWriteTool?: () => void  // FIX BUG #14: Called when write_file/update_file succeeds
 }
 
 async function streamAnthropicWithTools(options: StreamOptions) {
@@ -472,7 +489,8 @@ async function streamAnthropicWithTools(options: StreamOptions) {
     enableTools, 
     send, 
     onTokens, 
-    onContent 
+    onContent,
+    onWriteTool 
   } = options
 
   const anthropic = new Anthropic({ apiKey })
@@ -659,6 +677,15 @@ async function streamAnthropicWithTools(options: StreamOptions) {
         error: result.error,
       })
     }
+    
+    // FIX BUG #14: Track if write tools were successfully executed
+    const writeToolNames = ['write_file', 'update_file', 'delete_file', 'move_file']
+    const hasSuccessfulWrite = toolCalls.some((tc, i) => 
+      writeToolNames.includes(tc.name) && results[i]?.success
+    )
+    if (hasSuccessfulWrite && onWriteTool) {
+      onWriteTool()
+    }
 
     // Format results for API
     const formattedResults = formatAnthropicToolResults(results)
@@ -682,6 +709,7 @@ interface OpenAIStreamOptions {
   send: (type: string, data: any) => void
   onTokens: (input: number, output: number) => void
   onContent: (text: string) => void
+  onWriteTool?: () => void  // FIX BUG #14: Called when write_file/update_file succeeds
 }
 
 async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
@@ -693,7 +721,8 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
     enableTools, 
     send, 
     onTokens, 
-    onContent 
+    onContent,
+    onWriteTool
   } = options
 
   console.log('[OpenAI] Initializing with key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO KEY')
@@ -852,6 +881,15 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
         output: result.output,
         error: result.error,
       })
+    }
+    
+    // FIX BUG #14: Track if write tools were successfully executed
+    const writeToolNames = ['write_file', 'update_file', 'delete_file', 'move_file']
+    const hasSuccessfulWrite = parsedToolCalls.some((tc, i) => 
+      writeToolNames.includes(tc.name) && results[i]?.success
+    )
+    if (hasSuccessfulWrite && onWriteTool) {
+      onWriteTool()
     }
 
     // Add tool results to conversation
