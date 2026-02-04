@@ -60,14 +60,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse and validate request body
-    let body: { name?: string; description?: string; type?: string; metadata?: object }
+    let body: { name?: string; description?: string; type?: string; metadata?: object; initialPrompt?: string }
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const { name, description, type, metadata } = body
+    const { name, description, type, metadata, initialPrompt } = body
 
     // Validate inputs
     if (name !== undefined && (typeof name !== 'string' || name.length > 100)) {
@@ -95,6 +95,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Merge initialPrompt into metadata if provided
+    // This avoids URL encoding issues with long prompts containing emojis
+    const appMetadata = {
+      ...(metadata || {}),
+      ...(initialPrompt ? { initialPrompt } : {}),
+    }
+
     // Create app with conversation and type
     const app = await prisma.app.create({
       data: {
@@ -102,7 +109,7 @@ export async function POST(req: NextRequest) {
         description,
         type: appType as AppType,
         files: defaultFiles,
-        metadata: metadata || undefined,
+        metadata: Object.keys(appMetadata).length > 0 ? appMetadata : undefined,
         userId: user.id,
         conversationId: conversation.id,
       },

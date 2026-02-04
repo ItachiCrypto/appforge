@@ -75,7 +75,9 @@ export default function AppEditorPage() {
   const searchParams = useSearchParams()
   const { user } = useUser()
   const appId = params.id as string
-  const initialPrompt = searchParams.get('prompt')
+  // Support both URL param (legacy) and metadata (new, safer for Unicode)
+  const urlPrompt = searchParams.get('prompt')
+  const [initialPrompt, setInitialPrompt] = useState<string | null>(urlPrompt)
   
   // Editor mode from store
   const { mode, setMode } = useEditorStore()
@@ -111,11 +113,12 @@ export default function AppEditorPage() {
   // RECOM-1: AbortController for stopping streaming
   const abortControllerRef = useRef<AbortController | null>(null)
   
-  // Métadonnées pour les économies
+  // Métadonnées pour les économies et prompt initial
   const [appMetadata, setAppMetadata] = useState<{
     replacedSaas?: string
     replacedSaasName?: string
     monthlySavings?: number
+    initialPrompt?: string
   } | null>(null)
 
   // Preview error tracking for AI assistance
@@ -139,6 +142,10 @@ export default function AppEditorPage() {
           // Charger les métadonnées (économies)
           if (app.metadata) {
             setAppMetadata(app.metadata)
+            // Extract initialPrompt from metadata (new method, safer for Unicode)
+            if (app.metadata.initialPrompt && !urlPrompt) {
+              setInitialPrompt(app.metadata.initialPrompt)
+            }
           }
 
           // CRITICAL FIX: If DB has no files, save DEFAULT_FILES to DB

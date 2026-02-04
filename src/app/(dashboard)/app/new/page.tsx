@@ -381,7 +381,9 @@ export default function NewAppPage() {
             monthlySavings: selectedSaasForTemplate.monthlyPrice,
             primaryColor: selectedColor,
             allReplacedSaas: selectedSaas,
-          }
+          },
+          // Pass prompt via body instead of URL to avoid Unicode encoding issues
+          initialPrompt: templateData.prompt,
         }),
       })
 
@@ -391,7 +393,8 @@ export default function NewAppPage() {
       }
 
       const app = await res.json()
-      router.push(`/app/${app.id}?prompt=${encodeURIComponent(templateData.prompt)}`)
+      // No longer passing prompt in URL - it's stored in app.metadata.initialPrompt
+      router.push(`/app/${app.id}`)
     } catch (err) {
       console.error('Create app error:', err)
       setError(err instanceof Error ? err.message : 'Erreur lors de la création')
