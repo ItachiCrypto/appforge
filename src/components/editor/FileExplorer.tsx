@@ -194,12 +194,12 @@ export function FileExplorer({ files, className, onFileSelect }: FileExplorerPro
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
-        Files
+        Fichiers
       </div>
       <div className="flex-1 overflow-auto py-2">
         {tree.length === 0 ? (
           <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-            No files
+            Aucun fichier
           </div>
         ) : (
           tree.map(node => (

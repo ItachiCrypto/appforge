@@ -10,7 +10,7 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full bg-muted/20">
-      <div className="text-sm text-muted-foreground">Loading editor...</div>
+      <div className="text-sm text-muted-foreground">Chargement de l'éditeur...</div>
     </div>
   )
 })
@@ -129,8 +129,8 @@ export function CodeEditor({ files, onFileChange, className, readOnly = false }:
         className
       )}>
         <div className="text-center">
-          <p className="text-sm">Select a file to edit</p>
-          <p className="text-xs mt-1">or create a new one</p>
+          <p className="text-sm">Sélectionne un fichier à éditer</p>
+          <p className="text-xs mt-1">ou crée-en un nouveau</p>
         </div>
       </div>
     )
