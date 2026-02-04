@@ -168,17 +168,70 @@ Hypothèses possibles:
 
 ## RÉSUMÉ DES BUGS - À CORRIGER EN PRIORITÉ
 
-| ID | Bug | Priorité | Impact |
-|---|---|---|---|
-| BUG-001 | AI génère code avec lucide-react non disponible | P1 | 100% des apps |
-| BUG-002 | "Corriger avec l'IA" ne corrige pas vraiment | P0 | Apps complexes |
-
-### Actions recommandées URGENTES
-
-1. **IMMÉDIAT:** Modifier le prompt IA pour ne pas utiliser lucide-react
-2. **COURT TERME:** Ajouter lucide-react aux dépendances du sandbox
-3. **DEBUG:** Investiguer pourquoi la correction IA ne modifie pas le code pour Notion
+| ID | Bug | Priorité | Impact | Status |
+|---|---|---|---|---|
+| BUG-001 | AI génère code avec lucide-react non disponible | P1 | 100% des apps | ✅ CORRIGÉ |
+| BUG-002 | "Corriger avec l'IA" ne corrige pas vraiment | P0 | Apps complexes | ✅ CORRIGÉ |
 
 ---
 
-*Rapport généré le 2026-02-04 12:53 GMT+1*
+## CORRECTIONS APPLIQUÉES (2026-02-04 13:04 GMT+1)
+
+### BUG-001: lucide-react non disponible ✅ CORRIGÉ
+
+**Fichier modifié:** `src/components/preview/Preview.tsx`
+
+**Fix appliqué:** Ajout de `lucide-react` aux dépendances Sandpack
+
+```javascript
+// AVANT
+const sandpackSetup = {
+  dependencies: {},
+}
+
+// APRÈS
+const sandpackSetup = {
+  dependencies: {
+    "lucide-react": "latest",
+  },
+}
+```
+
+**Résultat:** Le sandbox Sandpack charge maintenant lucide-react, les apps générées par l'IA fonctionneront immédiatement.
+
+---
+
+### BUG-002: "Corriger avec l'IA" ne fonctionne pas ✅ CORRIGÉ
+
+**Fichier modifié:** `src/app/(dashboard)/app/[id]/page.tsx`
+
+**Cause racine:** Le `useCallback` de `handleFixWithAI` avait un tableau de dépendances vide `[]`. Cela causait une **stale closure** - la fonction `handleSend` capturée était celle du premier rendu, qui ne fonctionnait pas correctement car elle avait des valeurs d'état initiales (vides).
+
+**Fix appliqué:** Utilisation d'un `useRef` pour toujours accéder à la dernière version de `handleSend`
+
+```javascript
+// AVANT
+const handleFixWithAI = useCallback((error: PreviewError) => {
+  // ...
+  void handleSend(errorContext)  // ❌ Stale handleSend!
+}, [])
+
+// APRÈS
+const handleSendRef = useRef(handleSend)
+useEffect(() => {
+  handleSendRef.current = handleSend
+})
+
+const handleFixWithAI = useCallback((error: PreviewError) => {
+  // ...
+  void handleSendRef.current(errorContext)  // ✅ Always fresh!
+}, [])
+```
+
+**Résultat:** Le bouton "Corriger avec l'IA" envoie maintenant correctement la requête à l'IA avec la fonction à jour.
+
+---
+
+**Commit:** `46ba918` - "fix: BUG-001 & BUG-002 - lucide-react + Corriger avec IA"
+
+*Corrections appliquées le 2026-02-04 13:04 GMT+1*
