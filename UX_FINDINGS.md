@@ -35,6 +35,20 @@
 
 ---
 
+### [FIXED] P2 - ErrorOverlay Preview en anglais
+**Commit:** `ac87717`
+**Fichier modifié:** `src/components/preview/Preview.tsx`
+**Traductions:**
+- "Preview Error" → "Erreur de prévisualisation"
+- "Compilation Error" → "Erreur de compilation"
+- "Runtime Error" → "Erreur d'exécution"
+- "in [file]" → "dans [file]"
+- "Reset" → "Réinitialiser"
+
+**Impact:** L'overlay d'erreur du preview est maintenant en français
+
+---
+
 ## Test Nouvelle App (post-fix lucide-react)
 
 - [ ] App créée sans erreur lucide-react
