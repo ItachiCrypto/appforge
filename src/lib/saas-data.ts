@@ -455,7 +455,21 @@ Classes conditionnelles sur le conteneur racine:
 6. Focus auto sur le titre quand on crée une nouvelle page
 
 ## CODE MINIMUM: 400+ lignes
-Le code DOIT être complet, fonctionnel, et impressionnant visuellement.`,
+Le code DOIT être complet, fonctionnel, et impressionnant visuellement.
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 5 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/Sidebar.js", ...) - Navigation et pages
+2. write_file("/components/PageItem.js", ...) - Item de page récursif
+3. write_file("/components/Editor.js", ...) - Éditeur de blocs
+4. write_file("/components/Block.js", ...) - Composant bloc individuel
+5. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 5 fois.`,
     description: 'Notes et docs avec édition riche'
   },
 
@@ -826,7 +840,20 @@ useEffect(() => {
 \`\`\`
 
 ## CODE MINIMUM: 500+ lignes
-Le résultat doit être IMPRESSIONNANT. Un débutant doit dire "WOW c'est une vraie app!"`,
+Le résultat doit être IMPRESSIONNANT. Un débutant doit dire "WOW c'est une vraie app!"
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 4 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/Card.js", ...) - Carte draggable
+2. write_file("/components/Column.js", ...) - Colonne avec drop zone
+3. write_file("/components/CardModal.js", ...) - Modal d'édition
+4. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 4 fois.`,
     description: 'Gestion de projets en colonnes'
   },
 
@@ -931,7 +958,20 @@ const [projects] = useState([
 - Hover effects sur les lignes
 - Responsive avec sidebar collapse
 
-CODE MINIMUM: 350+ lignes`,
+CODE MINIMUM: 350+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 3 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/Sidebar.js", ...) - Navigation latérale
+2. write_file("/components/StatCard.js", ...) - Carte de statistiques
+3. write_file("/components/ProjectTable.js", ...) - Tableau des projets
+4. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 3 fois.`,
     description: 'Vue d\'ensemble des projets'
   },
 
@@ -1015,7 +1055,20 @@ Pré-remplis avec des messages de démonstration entre utilisateurs fictifs.
 - Scroll auto en bas
 - Dark mode support
 
-CODE MINIMUM: 300+ lignes`,
+CODE MINIMUM: 300+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 3 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/Sidebar.js", ...) - Liste des channels
+2. write_file("/components/MessageList.js", ...) - Zone des messages
+3. write_file("/components/MessageInput.js", ...) - Input avec envoi
+4. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 3 fois.`,
     description: 'Messagerie instantanée'
   },
   'support-chat': {
@@ -1041,7 +1094,20 @@ CODE MINIMUM: 300+ lignes`,
 ## DONNÉES
 Pré-remplir avec 3 campagnes et stats fictives.
 
-CODE MINIMUM: 300+ lignes`,
+CODE MINIMUM: 300+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 3 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/CampaignList.js", ...) - Liste des campagnes
+2. write_file("/components/EmailEditor.js", ...) - Éditeur d'email
+3. write_file("/components/StatsPanel.js", ...) - Panneau statistiques
+4. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 3 fois.`,
     description: 'Campagnes email'
   },
   'newsletter': {
@@ -1100,7 +1166,20 @@ const [stats] = useState({
 })
 \`\`\`
 
-CODE MINIMUM: 300+ lignes`,
+CODE MINIMUM: 300+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 3 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/StatCard.js", ...) - Cartes de statistiques
+2. write_file("/components/Chart.js", ...) - Graphiques en barres/lignes
+3. write_file("/components/DataTable.js", ...) - Tableaux de données
+4. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 3 fois.`,
     description: 'Visualisation des données'
   },
   'event-analytics': {
@@ -1137,7 +1216,21 @@ const [contacts] = useState([
 ])
 \`\`\`
 
-CODE MINIMUM: 350+ lignes`,
+CODE MINIMUM: 350+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 4 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/Sidebar.js", ...) - Navigation CRM
+2. write_file("/components/StatCard.js", ...) - Cartes de stats
+3. write_file("/components/Pipeline.js", ...) - Vue pipeline visuelle
+4. write_file("/components/ContactTable.js", ...) - Tableau contacts
+5. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 4 fois.`,
     description: 'Gestion des contacts'
   },
   'sales-pipeline': {
@@ -1172,7 +1265,20 @@ const [bookings] = useState([
 ])
 \`\`\`
 
-CODE MINIMUM: 300+ lignes`,
+CODE MINIMUM: 300+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 3 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/Calendar.js", ...) - Vue calendrier semaine
+2. write_file("/components/TimeSlot.js", ...) - Créneaux horaires
+3. write_file("/components/BookingForm.js", ...) - Formulaire de réservation
+4. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 3 fois.`,
     description: 'Prise de rendez-vous'
   },
   'invoice-app': {
@@ -1202,7 +1308,21 @@ const [invoices] = useState([
 ])
 \`\`\`
 
-CODE MINIMUM: 350+ lignes`,
+CODE MINIMUM: 350+ lignes
+
+## 🚨 INSTRUCTIONS CRITIQUES - MULTI-FICHIERS OBLIGATOIRE
+
+Tu DOIS créer cette app en PLUSIEURS fichiers séparés (MINIMUM 4 fichiers).
+Appelle write_file pour chaque composant AVANT de créer App.js.
+
+**ORDRE OBLIGATOIRE des appels write_file:**
+1. write_file("/components/InvoiceList.js", ...) - Liste des factures
+2. write_file("/components/InvoiceEditor.js", ...) - Éditeur de facture
+3. write_file("/components/InvoicePreview.js", ...) - Preview PDF
+4. write_file("/components/ClientSelector.js", ...) - Sélection client
+5. write_file("/App.js", ...) - EN DERNIER, importe les composants
+
+NE RÉPONDS PAS "C'est fait" avant d'avoir appelé write_file au moins 4 fois.`,
     description: 'Création de factures'
   },
   'accounting': {

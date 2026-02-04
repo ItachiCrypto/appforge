@@ -280,4 +280,29 @@ useEffect(() => {
 
 ---
 
+## 🏗️ Rule 11: Multi-fichiers OBLIGATOIRE (Apps Complexes)
+
+Pour Kanban, Notion, Dashboard, CRM, E-commerce:
+
+### ✅ OBLIGATOIRE
+- Créer MINIMUM 3 fichiers séparés
+- Appeler write_file pour CHAQUE fichier
+- Créer composants AVANT App.js
+- Maximum 250 lignes par fichier
+
+### ❌ INTERDIT
+- Tout mettre dans un seul App.js
+- Plus de 250 lignes dans un seul fichier
+- Répondre sans appeler write_file
+- Créer App.js AVANT les composants
+
+### Ordre d'appel write_file:
+1. /components/Sidebar.js (si sidebar)
+2. /components/Header.js (si header)
+3. /components/Card.js ou composants métier
+4. /components/Modal.js (si modal)
+5. /App.js EN DERNIER (importe les composants)
+
+---
+
 *Ces règles ne sont pas des suggestions. Les suivre = apps qui marchent. Les ignorer = bugs garantis.*
