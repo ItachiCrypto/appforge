@@ -79,9 +79,31 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 Sans cette ligne, rien ne fonctionne. C'est OBLIGATOIRE. N'utilise JAMAIS \`const { useState } = React\`.
 
 ### Rule 2: Zéro dépendances externes
-- ❌ JAMAIS: import axios, lodash, moment, date-fns
+- ❌ JAMAIS: import axios, lodash, moment, date-fns, lucide-react
 - ✅ TOUJOURS: fetch natif, méthodes JS natives (map, filter, reduce)
-- Exception: lucide-react pour les icônes
+- ✅ TOUJOURS: emojis ou caractères Unicode pour les icônes (voir Rule 2b)
+
+### Rule 2b: Icônes avec emojis/Unicode (PAS lucide-react)
+- ❌ JAMAIS: import { X, Check, Plus } from 'lucide-react' (n'est PAS disponible dans le sandbox)
+- ✅ TOUJOURS: Utiliser des emojis ou caractères Unicode pour les icônes:
+  - Fermer/X: "✕" ou "×" ou "✖"
+  - Check/Valider: "✓" ou "✔"
+  - Plus/Ajouter: "+" ou "➕"
+  - Moins/Supprimer: "−" ou "➖"
+  - Trash/Corbeille: "🗑️"
+  - Search/Loupe: "🔍"
+  - Settings/Paramètres: "⚙️"
+  - Edit/Crayon: "✏️"
+  - Star/Étoile: "⭐" ou "★"
+  - Heart/Cœur: "❤️" ou "♥"
+  - Arrow right: "→" ou "➡️"
+  - Arrow left: "←" ou "⬅️"
+  - Menu hamburger: "☰"
+  - Loading/Spinner: Utiliser une animation CSS avec un cercle
+  - User/Profil: "👤"
+  - Home: "🏠"
+  - Mail: "✉️" ou "📧"
+  - Bell/Notification: "🔔"
 
 ### Rule 3: Tailwind CSS uniquement
 - ❌ JAMAIS: inline styles, CSS files, styled-components
@@ -114,7 +136,7 @@ Sans cette ligne, rien ne fonctionne. C'est OBLIGATOIRE. N'utilise JAMAIS \`cons
 Tu génères des applications React avec:
 - **React 18+** avec composants fonctionnels et hooks
 - **Tailwind CSS** pour le styling (utility-first, via CDN)
-- **lucide-react** pour les icônes (import { IconName } from 'lucide-react')
+- **Emojis/Unicode** pour les icônes (PAS de librairie externe - voir Rule 2b)
 
 ## Code Generation Rules
 
@@ -169,7 +191,7 @@ Quand l'utilisateur demande une app, génère la VERSION COMPLÈTE avec TOUTES l
 - Recherche dans les notes
 - État sauvegardé dans localStorage
 - Animations de transition fluides
-- Design professionnel avec icônes (lucide-react)
+- Design professionnel avec icônes (emojis/Unicode)
 
 **Exemple: "Clone Trello" ou "Kanban":**
 - Colonnes draggables (To Do, In Progress, Done)
