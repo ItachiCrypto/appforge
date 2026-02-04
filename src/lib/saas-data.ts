@@ -226,6 +226,7 @@ export const SAAS_APPS: SaaSApp[] = [
 ]
 
 // Templates correspondants avec leurs prompts
+// IMPORTANT: Les prompts doivent être TRÈS détaillés pour obtenir des apps de qualité
 export const SAAS_TEMPLATES: Record<string, {
   name: string
   prompt: string
@@ -233,27 +234,125 @@ export const SAAS_TEMPLATES: Record<string, {
 }> = {
   'notion-clone': {
     name: 'Clone Notion',
-    prompt: 'Create a Notion-like notes app with: sidebar navigation, rich text editor, nested pages support, and dark mode. Make it beautiful and functional.',
+    prompt: `Crée une app de notes complète style Notion avec TOUTES ces fonctionnalités (350+ lignes de code minimum):
+
+STRUCTURE:
+- Layout flex avec sidebar à gauche (w-64) et contenu principal à droite
+- Sidebar avec: titre "📝 Mes Notes", barre de recherche, liste des pages, bouton "+ Nouvelle page"
+- Zone principale avec: header (titre de la page éditable), zone d'édition
+
+FONCTIONNALITÉS OBLIGATOIRES:
+1. CRUD pages: créer, renommer (double-clic), supprimer (bouton 🗑️ au hover)
+2. Éditeur de texte: textarea avec placeholder, sauvegarde auto
+3. Recherche temps réel: filtre les pages par titre
+4. Dark mode: toggle ☀️/🌙 qui change le thème
+5. localStorage: persister pages et contenu
+6. Page active: highlight dans la sidebar
+7. Empty states: "Aucune note" si vide
+
+STYLE:
+- Fond sombre pour sidebar (bg-gray-900), fond clair pour contenu (bg-white)
+- Transitions douces (transition-all duration-200)
+- Hover states sur tous les éléments cliquables
+- Design moderne avec rounded-lg et shadow`,
     description: 'Notes et docs avec édition riche'
   },
   'kanban': {
     name: 'Tableau Kanban',
-    prompt: 'Create a Trello-style kanban board with: draggable cards, multiple columns (To Do, In Progress, Done), card details modal, and labels. Use a clean modern design.',
+    prompt: `Crée un tableau Kanban style Trello avec TOUTES ces fonctionnalités (300+ lignes minimum):
+
+STRUCTURE:
+- Header avec titre et bouton dark mode
+- 3 colonnes: "📋 À faire", "🔄 En cours", "✅ Terminé"
+- Chaque colonne avec: titre, compteur de cartes, liste de cartes, bouton "+ Ajouter"
+
+FONCTIONNALITÉS OBLIGATOIRES:
+1. Drag & drop: déplacer les cartes entre colonnes (onDragStart, onDragOver, onDrop)
+2. CRUD cartes: créer avec titre, supprimer
+3. Labels de couleur: rouge/jaune/vert sur chaque carte
+4. Modal d'édition: clic sur carte ouvre modal pour modifier
+5. localStorage: persister l'état
+6. Compteurs: nombre de cartes par colonne
+
+STYLE:
+- Colonnes côte à côte (flex gap-4)
+- Cartes avec shadow-md et rounded-lg
+- Couleurs distinctes par colonne
+- Animation au drag (opacity-50)`,
     description: 'Gestion de projets en colonnes'
   },
   'task-manager': {
     name: 'Gestionnaire de tâches',
-    prompt: 'Create a task management app with: task list with priorities, due dates, project grouping, filters, and progress tracking. Clean and minimal design.',
+    prompt: `Crée un gestionnaire de tâches complet avec TOUTES ces fonctionnalités (250+ lignes minimum):
+
+STRUCTURE:
+- Header avec titre, compteur de tâches, filtres
+- Liste de tâches avec checkbox, titre, priorité, date, actions
+- Footer avec stats
+
+FONCTIONNALITÉS OBLIGATOIRES:
+1. CRUD: ajouter tâche avec titre + priorité + date
+2. Priorités: haute (rouge), moyenne (jaune), basse (vert)
+3. Filtres: Toutes / Actives / Complétées / Par priorité
+4. Tri: par date ou priorité
+5. Complétion: checkbox qui barre le texte
+6. localStorage: persister
+7. Dates limites: affichage et warning si passée
+
+STYLE:
+- Tâches en cartes avec padding et hover
+- Badges de priorité colorés
+- Date en rouge si dépassée`,
     description: 'Suivi des tâches et projets'
   },
   'project-dashboard': {
     name: 'Dashboard Projet',
-    prompt: 'Create a project management dashboard with: project cards, team members, progress bars, timeline view, and status indicators. Professional design.',
+    prompt: `Crée un dashboard projet pro avec TOUTES ces fonctionnalités (250+ lignes minimum):
+
+STRUCTURE:
+- Sidebar avec navigation: Dashboard, Projets, Équipe, Paramètres
+- Header avec titre de page et avatar utilisateur
+- Contenu: 4 stat cards + tableau de projets
+
+FONCTIONNALITÉS OBLIGATOIRES:
+1. Stats cards: Projets actifs, Tâches complétées, Heures cette semaine, Équipe
+2. Tableau projets: nom, statut, progression (barre), équipe (avatars), actions
+3. Filtres par statut: Tous / En cours / Terminés / En pause
+4. Responsive: sidebar collapse sur mobile
+
+STYLE:
+- Sidebar sombre, contenu clair
+- Progress bars colorées selon %
+- Avatars empilés pour l'équipe
+- Hover sur les lignes du tableau`,
     description: 'Vue d\'ensemble des projets'
   },
   'todo-app': {
     name: 'Todo App',
-    prompt: 'Create a beautiful todo app with: task input, categories, due dates, completion tracking, and daily/weekly views. Minimalist and satisfying UX.',
+    prompt: `Crée une Todo App complète et belle avec TOUTES ces fonctionnalités (200+ lignes minimum):
+
+STRUCTURE:
+- Container centré avec max-w-md
+- Header avec titre et compteur
+- Input + bouton ajouter
+- Filtres: Toutes / Actives / Complétées
+- Liste des tâches
+- Footer avec actions
+
+FONCTIONNALITÉS OBLIGATOIRES:
+1. Ajouter tâche: input + bouton avec onClick={() => addTodo()}
+2. Supprimer: bouton 🗑️ avec onClick={() => deleteTodo(id)}
+3. Toggle complété: checkbox qui barre le texte
+4. Édition: double-clic pour éditer inline
+5. Filtres fonctionnels
+6. localStorage: persister
+7. "Supprimer terminées": vider les complétées
+
+STYLE:
+- Fond gradient (from-purple-500 to-pink-500)
+- Carte blanche avec shadow-xl
+- Animations sur les items
+- Hover states partout`,
     description: 'Liste de tâches simple'
   },
   'chat-app': {
