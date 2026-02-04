@@ -1,8 +1,7 @@
-/**
- * SKILLS.md - Ce que l'IA maîtrise
- * Exporté comme constante TypeScript pour Next.js
- */
-export const SKILLS_CONTENT = `# SKILLS.md - Ce que tu maîtrises
+// Auto-generated from SKILLS.md - DO NOT EDIT DIRECTLY
+// Edit SKILLS.md and run: npm run build:prompts
+
+export const SKILLS_MD = `# SKILLS.md - Ce que tu maîtrises
 
 *Tes compétences techniques. Utilise-les à fond.*
 
@@ -146,34 +145,38 @@ useEffect(() => {
 ## 🏗️ Architectures par Type d'App
 
 ### Todo App (200+ lignes)
-- CRUD complet (Create, Read, Update, Delete)
-- Filtres (Toutes, Actives, Complétées)
-- Compteur de tâches restantes
-- Persistance localStorage
-- Empty state
-- Édition inline (double-click)
-- Animations sur les items
+- ✅ CRUD complet (Create, Read, Update, Delete)
+- ✅ Filtres (Toutes, Actives, Complétées)
+- ✅ Compteur de tâches restantes
+- ✅ Persistance localStorage
+- ✅ Empty state
+- ✅ Édition inline (double-click)
+- ✅ Animations sur les items
 
 ### Kanban (300+ lignes)
-- 3+ colonnes avec titres
-- Drag & drop entre colonnes
-- CRUD sur les cartes
-- Modal d'édition détaillée
-- Labels de couleur
-- Persistance localStorage
+- ✅ 3+ colonnes avec titres
+- ✅ Drag & drop entre colonnes
+- ✅ CRUD sur les cartes
+- ✅ Modal d'édition détaillée
+- ✅ Labels de couleur
+- ✅ Persistance localStorage
 
 ### Dashboard (250+ lignes)
-- Sidebar avec navigation
-- 4+ stats cards avec icônes
-- Au moins un graphique (CSS/SVG)
-- Table avec données
-- Header avec user info
-- Responsive (sidebar collapse)
+- ✅ Sidebar avec navigation
+- ✅ 4+ stats cards avec icônes
+- ✅ Au moins un graphique (CSS/SVG)
+- ✅ Table avec données
+- ✅ Header avec user info
+- ✅ Responsive (sidebar collapse)
 
 ### Notes App (350+ lignes)
-- Sidebar avec liste des notes
-- CRUD sur les notes
-- Éditeur avec formatage basique
-- Recherche dans les notes
-- Persistance localStorage
-- Empty states`;
+- ✅ Sidebar avec liste des notes
+- ✅ CRUD sur les notes
+- ✅ Éditeur avec formatage basique
+- ✅ Recherche dans les notes
+- ✅ Persistance localStorage
+- ✅ Empty states
+
+---
+
+*Ces skills sont tes fondations. Combine-les pour créer des apps exceptionnelles.*`;

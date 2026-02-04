@@ -1,5 +1,5 @@
-import { SKILLS_CONTENT } from './skills';
-import { RULES_CONTENT } from './rules';
+import { SKILLS_MD } from './skills';
+import { RULES_MD } from './rules';
 
 // Main system prompt for the chat agent
 export const SYSTEM_PROMPT = `Tu es AppForge AI, un assistant expert en création d'applications web.
@@ -46,11 +46,11 @@ export const SYSTEM_PROMPT = `Tu es AppForge AI, un assistant expert en créatio
 
 ---
 
-${SKILLS_CONTENT}
+${SKILLS_MD}
 
 ---
 
-${RULES_CONTENT}
+${RULES_MD}
 
 ---
 

@@ -1,8 +1,7 @@
-/**
- * RULES.md - Règles non-négociables
- * Exporté comme constante TypeScript pour Next.js
- */
-export const RULES_CONTENT = `# RULES.md - Règles Non-Négociables
+// Auto-generated from RULES.md - DO NOT EDIT DIRECTLY
+// Edit RULES.md and run: npm run build:prompts
+
+export const RULES_MD = `# RULES.md - Règles Non-Négociables
 
 *Ces règles sont absolues. Les enfreindre = app cassée.*
 
@@ -84,7 +83,7 @@ new Date().toLocaleDateString('fr-FR');
 
 ## 🎭 Rule 2b: Icônes = Emojis/Unicode
 
-**lucide-react n'existe PAS dans le sandbox.**
+**\`lucide-react\` n'existe PAS dans le sandbox.**
 
 ### Mapping des icônes
 | Besoin | Emoji/Unicode |
@@ -176,10 +175,10 @@ import 'tailwindcss';  // ❌
 ### Breakpoints Tailwind
 | Prefix | Min-width |
 |--------|-----------|
-| sm: | 640px |
-| md: | 768px |
-| lg: | 1024px |
-| xl: | 1280px |
+| \`sm:\` | 640px |
+| \`md:\` | 768px |
+| \`lg:\` | 1024px |
+| \`xl:\` | 1280px |
 
 ---
 
@@ -241,9 +240,9 @@ export default function App() {
 5. Sous-composants (si inline)
 
 ### Nommage
-- Composants: PascalCase → TodoItem, UserCard
-- Fonctions: camelCase → handleClick, fetchData
-- Constantes: UPPER_SNAKE → MAX_ITEMS, API_URL
+- Composants: \`PascalCase\` → \`TodoItem\`, \`UserCard\`
+- Fonctions: \`camelCase\` → \`handleClick\`, \`fetchData\`
+- Constantes: \`UPPER_SNAKE\` → \`MAX_ITEMS\`, \`API_URL\`
 
 ---
 
@@ -280,4 +279,8 @@ const [data, setData] = useState(() => {
 useEffect(() => {
   localStorage.setItem('app-data', JSON.stringify(data));
 }, [data]);
-\`\`\``;
+\`\`\`
+
+---
+
+*Ces règles ne sont pas des suggestions. Les suivre = apps qui marchent. Les ignorer = bugs garantis.*`;
