@@ -259,26 +259,37 @@ STYLE:
   },
   'kanban': {
     name: 'Tableau Kanban',
-    prompt: `Crée un tableau Kanban style Trello avec TOUTES ces fonctionnalités (300+ lignes minimum):
+    prompt: `Crée un tableau Kanban PROFESSIONNEL style Trello avec TOUTES ces fonctionnalités (400+ lignes minimum):
 
 STRUCTURE:
-- Header avec titre et bouton dark mode
-- 3 colonnes: "📋 À faire", "🔄 En cours", "✅ Terminé"
-- Chaque colonne avec: titre, compteur de cartes, liste de cartes, bouton "+ Ajouter"
+- Header gradient (from-violet-600 to-purple-700) avec titre "📋 Mon Kanban", bouton dark mode toggle (☀️/🌙)
+- 3 colonnes FLEXIBLES côte à côte: "📋 À faire", "🔄 En cours", "✅ Terminé"
+- Chaque colonne: header avec titre + compteur badges, zone scrollable de cartes, bouton "+ Ajouter une tâche"
+
+DONNÉES INITIALES (pré-remplies au démarrage):
+- À faire: "Finaliser le design", "Écrire la doc"
+- En cours: "Développer l'API"
+- Terminé: "Setup du projet"
 
 FONCTIONNALITÉS OBLIGATOIRES:
-1. Drag & drop: déplacer les cartes entre colonnes (onDragStart, onDragOver, onDrop)
-2. CRUD cartes: créer avec titre, supprimer
-3. Labels de couleur: rouge/jaune/vert sur chaque carte
-4. Modal d'édition: clic sur carte ouvre modal pour modifier
-5. localStorage: persister l'état
-6. Compteurs: nombre de cartes par colonne
+1. DRAG & DROP COMPLET: onDragStart (opacity-50, scale-105), onDragOver (preventDefault, highlight colonne), onDrop (déplacer carte). AJOUTER draggable="true" sur les cartes!
+2. MODAL D'ÉDITION VISIBLE: au clic sur carte, afficher un vrai modal overlay (position fixed, bg-black/50) avec form pour éditer titre/description/label
+3. CRUD CARTES: créer via input inline (pas prompt!), supprimer avec bouton 🗑️ visible au hover
+4. LABELS COLORÉS VISIBLES: chaque carte a un badge coloré (🔴 rouge = urgent, 🟡 jaune = normal, 🟢 vert = low) affiché en haut de la carte
+5. localStorage: JSON.stringify/parse pour persister tasks au changement
+6. Compteurs dynamiques: badge avec nombre de cartes sur chaque titre de colonne
 
-STYLE:
-- Colonnes côte à côte (flex gap-4)
-- Cartes avec shadow-md et rounded-lg
-- Couleurs distinctes par colonne
-- Animation au drag (opacity-50)`,
+STYLE PREMIUM (important!):
+- Fond général: bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900
+- Colonnes: bg-white/10 backdrop-blur-sm rounded-2xl p-4 min-w-[300px]
+- Cartes: bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 cursor-grab hover:shadow-xl transition-all
+- Labels: w-full h-2 rounded-full en haut de chaque carte (bg-red-500/bg-yellow-500/bg-green-500)
+- Boutons: bg-violet-500 hover:bg-violet-600 text-white rounded-lg
+- Animation drag: transform scale-105 shadow-2xl
+- Responsive: flex-col sur mobile (md:flex-row)
+- Scrollbar custom: webkit-scrollbar stylé
+
+IMPORTANT: Le résultat doit ressembler à une vraie app production, pas un prototype basique!`,
     description: 'Gestion de projets en colonnes'
   },
   'task-manager': {
