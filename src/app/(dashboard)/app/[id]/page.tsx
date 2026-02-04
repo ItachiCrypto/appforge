@@ -362,6 +362,15 @@ export default function AppEditorPage() {
                   // Refresh files immediately when a file is created/updated
                   const toolName = toolNameById.get(data.toolCallId)
                   if (data.success && ['write_file', 'update_file', 'delete_file', 'move_file'].includes(toolName || '')) {
+                    // BUG FIX #13: Extract file path from tool output for auto-open
+                    let createdFilePath: string | null = null
+                    try {
+                      const output = typeof data.output === 'string' ? JSON.parse(data.output) : data.output
+                      createdFilePath = output?.path || null
+                    } catch {
+                      // Ignore parse errors
+                    }
+
                     // Fetch updated files from DB
                     fetch(`/api/apps/${appId}`)
                       .then(res => res.ok ? res.json() : null)
@@ -369,6 +378,19 @@ export default function AppEditorPage() {
                         if (app?.files && Object.keys(app.files).length > 0) {
                           setFiles(normalizeFilesForSandpack(app.files))
                           setPreviewVersion(v => v + 1)
+                          
+                          // BUG FIX #13: Auto-open created/updated file in Expert mode
+                          if (createdFilePath && mode === 'expert' && ['write_file', 'update_file'].includes(toolName || '')) {
+                            const normalizedPath = createdFilePath.startsWith('/') 
+                              ? createdFilePath 
+                              : '/' + createdFilePath
+                            // Normalize .tsx to .js for Sandpack compatibility
+                            const editorPath = normalizedPath.replace(/\.tsx?$/, '.js')
+                            // Use setTimeout to ensure state is updated first
+                            setTimeout(() => {
+                              useEditorStore.getState().openTab(editorPath)
+                            }, 50)
+                          }
                         }
                       })
                       .catch(err => console.error('[tool_result] Failed to refresh files:', err))
@@ -645,7 +667,7 @@ export default function AppEditorPage() {
         {mode === 'expert' ? (
           <ExpertLayout
             files={files}
-            onFileChange={handleFileChange}
+            onFileChange={isLoading ? undefined : handleFileChange}
             previewComponent={previewComponent}
             chatComponent={chatComponent}
           />
