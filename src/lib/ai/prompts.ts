@@ -317,6 +317,94 @@ Si tu réponds "Je crée ton app... C'est fait !" SANS appeler write_file:
 2. **TOUJOURS** fournir le contenu COMPLET - Jamais "// reste du code..."
 3. **TOUJOURS** appeler \`write_file\` - Sinon les changements ne sont pas sauvés !
 
+## 🏗️ ARCHITECTURE MULTI-FICHIERS
+
+### Quand utiliser plusieurs fichiers ?
+
+**Applications SIMPLES (1 fichier):**
+- Todo list, compteur, formulaire simple
+- < 200 lignes de code
+- → Tout dans \`/App.js\`
+
+**Applications COMPLEXES (plusieurs fichiers):**
+- Dashboard, Kanban, Clone Notion, CRM
+- > 200 lignes ou plusieurs sections distinctes
+- → Utiliser des composants séparés
+
+### Structure recommandée pour apps complexes
+
+\`\`\`
+/App.js                    # Point d'entrée, layout principal
+/components/Sidebar.js     # Navigation latérale
+/components/Header.js      # En-tête avec actions
+/components/Card.js        # Composant réutilisable
+/components/Modal.js       # Modals/overlays
+\`\`\`
+
+### Comment créer plusieurs fichiers
+
+1. **Créer le composant** avec \`write_file\`:
+\`\`\`
+write_file("/components/Sidebar.js", "import React from 'react';\\n\\nexport default function Sidebar() { ... }")
+\`\`\`
+
+2. **L'importer dans App.js**:
+\`\`\`jsx
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+\`\`\`
+
+### Règles critiques multi-fichiers
+
+1. **Chaque composant = 1 fichier** avec \`export default function NomComposant()\`
+2. **Imports relatifs** : \`import X from './components/X'\` (sans .js)
+3. **Tous les fichiers** doivent importer React: \`import React from 'react';\`
+4. **Props explicites** : passer les données et callbacks en props
+5. **Créer les composants D'ABORD**, puis App.js qui les importe
+
+### Exemple: App Kanban en multi-fichiers
+
+\`\`\`jsx
+// /components/Column.js
+import React from 'react';
+import Card from './Card';
+
+export default function Column({ title, cards, onDrop, onCardClick }) {
+  return (
+    <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+      <h2>{title}</h2>
+      {cards.map(card => (
+        <Card key={card.id} card={card} onClick={() => onCardClick(card)} />
+      ))}
+    </div>
+  );
+}
+
+// /components/Card.js
+import React from 'react';
+
+export default function Card({ card, onClick }) {
+  return (
+    <div draggable onClick={onClick} className="...">
+      {card.title}
+    </div>
+  );
+}
+
+// /App.js
+import React, { useState } from 'react';
+import Column from './components/Column';
+
+export default function App() {
+  const [tasks, setTasks] = useState([...]);
+  return (
+    <div>
+      <Column title="À faire" cards={tasks.filter(t => t.status === 'todo')} />
+    </div>
+  );
+}
+\`\`\`
+
 ## 🔴 CORRECTION D'ERREURS
 
 Quand tu reçois "🔴 Erreur":

@@ -234,62 +234,109 @@ export const SAAS_TEMPLATES: Record<string, {
 }> = {
   'notion-clone': {
     name: 'Clone Notion',
-    prompt: `Crée une app de notes complète style Notion avec TOUTES ces fonctionnalités (350+ lignes de code minimum):
+    prompt: `Crée une app de notes complète style Notion avec architecture MULTI-FICHIERS.
 
-STRUCTURE:
-- Layout flex avec sidebar à gauche (w-64) et contenu principal à droite
-- Sidebar avec: titre "📝 Mes Notes", barre de recherche, liste des pages, bouton "+ Nouvelle page"
-- Zone principale avec: header (titre de la page éditable), zone d'édition
+⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
 
-FONCTIONNALITÉS OBLIGATOIRES:
-1. CRUD pages: créer, renommer (double-clic), supprimer (bouton 🗑️ au hover)
-2. Éditeur de texte: textarea avec placeholder, sauvegarde auto
-3. Recherche temps réel: filtre les pages par titre
-4. Dark mode: toggle ☀️/🌙 qui change le thème
-5. localStorage: persister pages et contenu
-6. Page active: highlight dans la sidebar
-7. Empty states: "Aucune note" si vide
+FICHIERS À CRÉER (dans cet ordre):
+
+1. **/components/Sidebar.js** - Sidebar de navigation
+   - Liste des pages avec titre
+   - Barre de recherche
+   - Bouton "+ Nouvelle page"
+   - Page active highlightée
+   - Bouton supprimer 🗑️ au hover
+   - Props: pages, activePage, onSelect, onDelete, onCreate, searchQuery, onSearch
+
+2. **/components/Editor.js** - Éditeur de contenu
+   - Titre éditable (input)
+   - Zone de texte (textarea)
+   - Sauvegarde auto (onChange)
+   - Empty state si pas de page sélectionnée
+   - Props: page, onUpdate
+
+3. **/components/Header.js** - Header avec actions
+   - Toggle dark mode ☀️/🌙
+   - Titre de l'app "📝 Mes Notes"
+   - Props: darkMode, onToggleDark
+
+4. **/App.js** - Composant principal
+   - Importe Sidebar, Editor, Header
+   - State: pages[], activePage, darkMode, searchQuery
+   - localStorage: persister pages
+   - Layout: flex avec sidebar (w-64) et contenu
+
+FONCTIONNALITÉS:
+- CRUD pages: créer, renommer, supprimer
+- Recherche temps réel: filtre les pages par titre
+- Dark mode: toggle global
+- localStorage: persister pages et contenu
+- Empty states partout
 
 STYLE:
-- Fond sombre pour sidebar (bg-gray-900), fond clair pour contenu (bg-white)
-- Transitions douces (transition-all duration-200)
-- Hover states sur tous les éléments cliquables
-- Design moderne avec rounded-lg et shadow`,
+- Sidebar: bg-gray-900 (dark) ou bg-gray-100 (light)
+- Contenu: bg-white (dark: bg-gray-800)
+- Transitions: transition-all duration-200
+- Hover states sur tous les éléments cliquables`,
     description: 'Notes et docs avec édition riche'
   },
   'kanban': {
     name: 'Tableau Kanban',
-    prompt: `Crée un tableau Kanban PROFESSIONNEL style Trello avec TOUTES ces fonctionnalités (400+ lignes minimum):
+    prompt: `Crée un tableau Kanban PROFESSIONNEL style Trello avec architecture MULTI-FICHIERS.
 
-STRUCTURE:
-- Header gradient (from-violet-600 to-purple-700) avec titre "📋 Mon Kanban", bouton dark mode toggle (☀️/🌙)
-- 3 colonnes FLEXIBLES côte à côte: "📋 À faire", "🔄 En cours", "✅ Terminé"
-- Chaque colonne: header avec titre + compteur badges, zone scrollable de cartes, bouton "+ Ajouter une tâche"
+⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
 
-DONNÉES INITIALES (pré-remplies au démarrage):
+FICHIERS À CRÉER (dans cet ordre):
+
+1. **/components/Card.js** - Carte de tâche draggable
+   - Affiche titre, description courte, label coloré
+   - draggable="true" avec onDragStart
+   - Bouton 🗑️ au hover pour supprimer
+   - Clic pour ouvrir modal édition
+   - Props: card, onDragStart, onDelete, onClick
+
+2. **/components/Column.js** - Colonne du Kanban
+   - Header avec titre + emoji + compteur badge
+   - Zone scrollable de cartes (utilise Card)
+   - Bouton "+ Ajouter" avec input inline
+   - onDragOver, onDrop pour recevoir cartes
+   - Props: title, emoji, cards, onDrop, onAddCard, onDeleteCard, onCardClick, onDragStart
+
+3. **/components/Modal.js** - Modal d'édition de carte
+   - Overlay bg-black/50 position fixed
+   - Form: titre, description, sélecteur label (🔴🟡🟢)
+   - Boutons Sauvegarder / Annuler
+   - Props: card, onSave, onClose
+
+4. **/components/Header.js** - Header de l'app
+   - Titre "📋 Mon Kanban" gradient
+   - Toggle dark mode ☀️/🌙
+   - Props: darkMode, onToggleDark
+
+5. **/App.js** - Composant principal
+   - Importe Card, Column, Modal, Header
+   - State: tasks[], editingCard, darkMode
+   - 3 colonnes: "À faire", "En cours", "Terminé"
+   - localStorage: persister tasks
+   - Gestion drag & drop entre colonnes
+
+DONNÉES INITIALES:
 - À faire: "Finaliser le design", "Écrire la doc"
 - En cours: "Développer l'API"
 - Terminé: "Setup du projet"
 
-FONCTIONNALITÉS OBLIGATOIRES:
-1. DRAG & DROP COMPLET: onDragStart (opacity-50, scale-105), onDragOver (preventDefault, highlight colonne), onDrop (déplacer carte). AJOUTER draggable="true" sur les cartes!
-2. MODAL D'ÉDITION VISIBLE: au clic sur carte, afficher un vrai modal overlay (position fixed, bg-black/50) avec form pour éditer titre/description/label
-3. CRUD CARTES: créer via input inline (pas prompt!), supprimer avec bouton 🗑️ visible au hover
-4. LABELS COLORÉS VISIBLES: chaque carte a un badge coloré (🔴 rouge = urgent, 🟡 jaune = normal, 🟢 vert = low) affiché en haut de la carte
-5. localStorage: JSON.stringify/parse pour persister tasks au changement
-6. Compteurs dynamiques: badge avec nombre de cartes sur chaque titre de colonne
+FONCTIONNALITÉS:
+- Drag & drop complet entre colonnes
+- CRUD cartes: créer, éditer (modal), supprimer
+- Labels: 🔴 urgent, 🟡 normal, 🟢 low
+- localStorage persistence
+- Compteurs par colonne
 
-STYLE PREMIUM (important!):
-- Fond général: bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900
-- Colonnes: bg-white/10 backdrop-blur-sm rounded-2xl p-4 min-w-[300px]
-- Cartes: bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4 cursor-grab hover:shadow-xl transition-all
-- Labels: w-full h-2 rounded-full en haut de chaque carte (bg-red-500/bg-yellow-500/bg-green-500)
-- Boutons: bg-violet-500 hover:bg-violet-600 text-white rounded-lg
-- Animation drag: transform scale-105 shadow-2xl
-- Responsive: flex-col sur mobile (md:flex-row)
-- Scrollbar custom: webkit-scrollbar stylé
-
-IMPORTANT: Le résultat doit ressembler à une vraie app production, pas un prototype basique!`,
+STYLE PREMIUM:
+- Fond: bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900
+- Colonnes: bg-white/10 backdrop-blur-sm rounded-2xl
+- Cartes: bg-white rounded-xl shadow-lg cursor-grab
+- Animation drag: opacity-50 scale-105`,
     description: 'Gestion de projets en colonnes'
   },
   'task-manager': {
@@ -318,24 +365,53 @@ STYLE:
   },
   'project-dashboard': {
     name: 'Dashboard Projet',
-    prompt: `Crée un dashboard projet pro avec TOUTES ces fonctionnalités (250+ lignes minimum):
+    prompt: `Crée un dashboard projet pro avec architecture MULTI-FICHIERS.
 
-STRUCTURE:
-- Sidebar avec navigation: Dashboard, Projets, Équipe, Paramètres
-- Header avec titre de page et avatar utilisateur
-- Contenu: 4 stat cards + tableau de projets
+⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
 
-FONCTIONNALITÉS OBLIGATOIRES:
-1. Stats cards: Projets actifs, Tâches complétées, Heures cette semaine, Équipe
-2. Tableau projets: nom, statut, progression (barre), équipe (avatars), actions
-3. Filtres par statut: Tous / En cours / Terminés / En pause
-4. Responsive: sidebar collapse sur mobile
+FICHIERS À CRÉER (dans cet ordre):
+
+1. **/components/Sidebar.js** - Navigation latérale
+   - Logo/titre de l'app
+   - Menu: Dashboard, Projets, Équipe, Paramètres
+   - Item actif highlighté
+   - Collapse sur mobile (hamburger)
+   - Props: activeItem, onNavigate, collapsed, onToggle
+
+2. **/components/StatCard.js** - Carte de statistique
+   - Icône emoji, titre, valeur, variation
+   - Couleur selon type (vert/rouge/bleu)
+   - Props: icon, title, value, change, color
+
+3. **/components/ProjectTable.js** - Tableau des projets
+   - Colonnes: nom, statut, progression, équipe, actions
+   - Barre de progression colorée
+   - Avatars empilés pour l'équipe
+   - Actions: voir, éditer, supprimer
+   - Props: projects, onAction
+
+4. **/components/Header.js** - Header de page
+   - Titre de la page courante
+   - Avatar utilisateur avec dropdown
+   - Bouton notifications 🔔
+   - Props: title, user
+
+5. **/App.js** - Layout principal
+   - Importe tous les composants
+   - State: activePage, projects[], collapsed
+   - Layout: sidebar + main content
+   - 4 StatCards en grid
+   - ProjectTable avec données
+
+DONNÉES INITIALES:
+- Projets: "Site e-commerce" (75%), "App Mobile" (40%), "API Backend" (100%)
+- Stats: 12 projets actifs, 48 tâches, 32h cette semaine, 8 membres
 
 STYLE:
-- Sidebar sombre, contenu clair
-- Progress bars colorées selon %
-- Avatars empilés pour l'équipe
-- Hover sur les lignes du tableau`,
+- Sidebar: bg-gray-900 text-white w-64
+- Contenu: bg-gray-50
+- Cards: bg-white shadow-md rounded-xl
+- Table: hover sur les lignes`,
     description: 'Vue d\'ensemble des projets'
   },
   'todo-app': {
@@ -423,7 +499,57 @@ STYLE:
   },
   'crm-dashboard': {
     name: 'CRM Dashboard',
-    prompt: 'Create a CRM dashboard with: contacts list, deal pipeline, activity timeline, and key sales metrics. Professional B2B design.',
+    prompt: `Crée un CRM dashboard professionnel avec architecture MULTI-FICHIERS.
+
+⚠️ IMPORTANT: Utilise write_file pour créer CHAQUE fichier séparément:
+
+FICHIERS À CRÉER (dans cet ordre):
+
+1. **/components/Sidebar.js** - Navigation CRM
+   - Menu: Dashboard, Contacts, Deals, Activités
+   - Badge avec compteurs
+   - Props: activeItem, onNavigate, counts
+
+2. **/components/ContactList.js** - Liste des contacts
+   - Avatar, nom, email, entreprise
+   - Tags (Lead, Client, VIP)
+   - Actions: appeler, email, voir
+   - Recherche
+   - Props: contacts, onAction, searchQuery, onSearch
+
+3. **/components/DealPipeline.js** - Pipeline de ventes
+   - 4 colonnes: Prospect, Négociation, Proposition, Gagné
+   - Cartes de deals draggables
+   - Montant et probabilité
+   - Props: deals, onMove, onSelect
+
+4. **/components/ActivityTimeline.js** - Timeline des activités
+   - Liste chronologique des actions
+   - Types: appel, email, rdv, note
+   - Date relative (il y a 2h)
+   - Props: activities
+
+5. **/components/StatCard.js** - Métriques
+   - Chiffre d'affaires, deals en cours, taux conversion, contacts
+   - Props: icon, label, value, trend
+
+6. **/App.js** - Layout principal
+   - Importe tous les composants
+   - State: contacts[], deals[], activities[], activePage
+   - localStorage persistence
+   - Layout: sidebar + dashboard
+
+DONNÉES INITIALES:
+- 5 contacts (Lead, Client, VIP)
+- 4 deals dans différentes étapes
+- 6 activités récentes
+- Stats: 45k€ CA, 12 deals, 68% conversion
+
+STYLE B2B PRO:
+- Couleurs: bleu primaire, gris neutres
+- Cards avec shadow et rounded-xl
+- Typographie clean et lisible
+- Badges colorés pour les statuts`,
     description: 'Gestion des contacts'
   },
   'sales-pipeline': {
