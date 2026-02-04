@@ -251,7 +251,7 @@ export const SAAS_TEMPLATES: Record<string, {
 \`\`\`
 App
 ├── Sidebar (w-64, fixed left)
-│   ├── Logo + Titre "📝 Mes Notes"
+│   ├── Logo + Titre "Mes Notes"
 │   ├── SearchBar (filtre temps réel)
 │   ├── PageList (pages avec nested children)
 │   │   └── PageItem (récursif pour nested)
@@ -274,16 +274,16 @@ App
 const [pages, setPages] = useState([
   {
     id: '1',
-    title: 'Bienvenue 👋',
+    title: 'Bienvenue',
     content: [
       { id: 'b1', type: 'heading', content: 'Bienvenue dans tes Notes!' },
       { id: 'b2', type: 'text', content: 'Ceci est ton espace personnel pour organiser tes idées.' },
-      { id: 'b3', type: 'list', content: ['Créer des pages', 'Organiser en sous-pages', 'Rechercher rapidement'] },
+      { id: 'b3', type: 'list', content: ['Creer des pages', 'Organiser en sous-pages', 'Rechercher rapidement'] },
     ],
     parentId: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    icon: '📄',
+    icon: 'page',
     isExpanded: true,
   },
   {
@@ -291,15 +291,15 @@ const [pages, setPages] = useState([
     title: 'Projets',
     content: [{ id: 'b4', type: 'text', content: 'Liste de mes projets en cours...' }],
     parentId: null,
-    icon: '📁',
+    icon: 'folder',
     isExpanded: true,
   },
   {
     id: '3',
     title: 'Projet Alpha',
-    content: [{ id: 'b5', type: 'text', content: 'Détails du projet Alpha' }],
+    content: [{ id: 'b5', type: 'text', content: 'Details du projet Alpha' }],
     parentId: '2', // NESTED sous "Projets"
-    icon: '🚀',
+    icon: 'rocket',
   },
 ])
 const [selectedPageId, setSelectedPageId] = useState('1')
@@ -505,7 +505,7 @@ App
 const [columns, setColumns] = useState([
   {
     id: 'todo',
-    title: '📋 À faire',
+    title: 'A faire',
     color: '#6366f1', // indigo
     cards: [
       {
@@ -532,7 +532,7 @@ const [columns, setColumns] = useState([
   },
   {
     id: 'in-progress',
-    title: '🔄 En cours',
+    title: 'En cours',
     color: '#f59e0b', // amber
     cards: [
       {
@@ -551,7 +551,7 @@ const [columns, setColumns] = useState([
   },
   {
     id: 'done',
-    title: '✅ Terminé',
+    title: 'Termine',
     color: '#10b981', // emerald
     cards: [
       {
@@ -918,9 +918,9 @@ CODE MINIMUM: 300+ lignes`,
 ## DONNÉES INITIALES
 \`\`\`javascript
 const [projects] = useState([
-  { id: '1', name: 'Refonte Site Web', status: 'active', progress: 75, team: ['👨‍💻', '👩‍🎨'], dueDate: '2024-03-01' },
-  { id: '2', name: 'App Mobile', status: 'active', progress: 45, team: ['👨‍💻', '👩‍💻', '🧑‍🔬'], dueDate: '2024-04-15' },
-  { id: '3', name: 'API Backend', status: 'completed', progress: 100, team: ['🧑‍💻'], dueDate: '2024-01-20' },
+  { id: '1', name: 'Refonte Site Web', status: 'active', progress: 75, team: ['JD', 'ML'], dueDate: '2024-03-01' },
+  { id: '2', name: 'App Mobile', status: 'active', progress: 45, team: ['JD', 'SL', 'PT'], dueDate: '2024-04-15' },
+  { id: '3', name: 'API Backend', status: 'completed', progress: 100, team: ['AC'], dueDate: '2024-01-20' },
 ])
 \`\`\`
 
