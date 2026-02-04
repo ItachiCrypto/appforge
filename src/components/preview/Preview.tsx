@@ -420,10 +420,10 @@ function ErrorOverlay({
             <AlertTriangle className="w-6 h-6 text-red-400" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white">Preview Error</h3>
+            <h3 className="text-lg font-semibold text-white">Erreur de prévisualisation</h3>
             <span className="text-xs text-gray-400">
-              {displayError.type === 'compile' ? 'Compilation Error' : 'Runtime Error'}
-              {displayError.file && ` in ${displayError.file}`}
+              {displayError.type === 'compile' ? 'Erreur de compilation' : 'Erreur d\'exécution'}
+              {displayError.file && ` dans ${displayError.file}`}
               {displayError.line && `:${displayError.line}`}
             </span>
           </div>
@@ -455,7 +455,7 @@ function ErrorOverlay({
               variant="outline"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Reset
+              Réinitialiser
             </Button>
           )}
         </div>

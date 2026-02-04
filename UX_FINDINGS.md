@@ -22,7 +22,16 @@
 
 ## Fixes Appliqués
 
-*(ux-fixer va documenter ici avec [FIXED])*
+### [FIXED] P2 - Incohérence linguistique (Textes EN → FR)
+**Commit:** `b9f8b88`
+**Fichiers modifiés:**
+- `src/app/(dashboard)/loading.tsx` → "Loading..." → "Chargement..."
+- `src/app/(auth)/loading.tsx` → "Loading..." → "Chargement..."
+- `src/app/(dashboard)/error.tsx` → "Something went wrong" → "Oups, quelque chose s'est mal passé"
+- `src/app/(dashboard)/error.tsx` → "Try Again" → "Réessayer"
+- `src/components/ui/error-boundary.tsx` → Tous les textes EN traduits en FR
+
+**Impact:** Cohérence linguistique - toute l'app est maintenant en français
 
 ---
 
