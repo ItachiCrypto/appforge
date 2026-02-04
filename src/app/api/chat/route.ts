@@ -183,8 +183,9 @@ export async function POST(req: NextRequest) {
       
       if (!hasByokKey && !platformKey) {
         return new Response(JSON.stringify({
-          error: 'Service temporarily unavailable. Please add your own API key.',
+          error: 'Service IA temporairement indisponible. Ajoutez votre propre clé API dans Paramètres → Clés API pour continuer.',
           code: 'NO_PLATFORM_KEY',
+          hint: 'Allez dans Paramètres et ajoutez votre clé OpenAI ou Anthropic.',
         }), {
           status: 503,
           headers: { 'Content-Type': 'application/json' },
@@ -731,7 +732,14 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
     } catch (openaiError) {
       console.error('[OpenAI] Error creating completion:', openaiError)
       const errMsg = openaiError instanceof Error ? openaiError.message : String(openaiError)
-      throw new Error(`OpenAI API error: ${errMsg}`)
+      // Better error message for users
+      if (errMsg.includes('Connection error') || errMsg.includes('ECONNREFUSED') || errMsg.includes('fetch failed')) {
+        throw new Error('Impossible de contacter l\'API IA. Vérifiez votre connexion ou ajoutez votre propre clé API dans Paramètres.')
+      }
+      if (errMsg.includes('Incorrect API key') || errMsg.includes('invalid_api_key')) {
+        throw new Error('Clé API invalide. Ajoutez une clé valide dans Paramètres → Clés API.')
+      }
+      throw new Error(`Erreur API IA: ${errMsg}`)
     }
 
     let assistantContent = ''
