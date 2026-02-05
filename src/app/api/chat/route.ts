@@ -515,7 +515,7 @@ async function streamAnthropicWithTools(options: StreamOptions) {
   // Use 'required' (any tool) instead of 'auto' to ensure AI uses tools when needed
   // Only truly neutral questions should skip tools
   const toolChoice = enableTools 
-    ? (isNewApp ? { type: 'tool' as const, name: 'write_file' } : { type: 'required' as const })
+    ? (isNewApp ? { type: 'tool' as const, name: 'write_file' } : { type: 'any' as const })
     : undefined
   
   // Build conversation messages

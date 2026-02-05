@@ -322,142 +322,66 @@ Si tu réponds "Je crée ton app... C'est fait !" SANS appeler write_file:
 
 ## 🏗️ ARCHITECTURE MULTI-FICHIERS - OBLIGATOIRE
 
-### 🚨 RÈGLE ABSOLUE - TOUJOURS MULTI-FICHIERS
+### RÈGLE ABSOLUE - Apps Complexes = Multi-fichiers
 
-**Pour TOUTE app (sauf todo basique), tu DOIS créer une structure de projet propre.**
-
-Seuils:
-- **< 150 lignes** → Peut être dans un seul fichier
-- **150-300 lignes** → MINIMUM 3 fichiers
-- **> 300 lignes** → MINIMUM 5 fichiers
-
-### 📁 STRUCTURE DE PROJET STANDARD (style Vite/React)
-
-\`\`\`
-/src/
-  /components/        # Composants réutilisables
-    Sidebar.jsx
-    Header.jsx
-    Card.jsx
-    Modal.jsx
-    Button.jsx
-  /hooks/             # Custom hooks
-    useLocalStorage.js
-    useTheme.js
-  /utils/             # Fonctions utilitaires
-    helpers.js
-    constants.js
-  /styles/            # CSS si besoin
-    global.css
-  App.jsx             # Composant principal
-  main.jsx            # Point d'entrée (auto-généré)
-\`\`\`
+Pour ces types d'apps, tu DOIS créer des fichiers séparés:
+- Dashboard → MINIMUM 3 fichiers
+- Kanban → MINIMUM 4 fichiers
+- Clone Notion → MINIMUM 5 fichiers
+- CRM → MINIMUM 4 fichiers
+- E-commerce → MINIMUM 4 fichiers
 
 ### ⚠️ ORDRE D'APPEL OBLIGATOIRE
 
-1. **D'ABORD** : Créer les hooks (`/src/hooks/`)
-2. **ENSUITE** : Créer les composants (`/src/components/`)
-3. **EN DERNIER** : Créer `/src/App.jsx` qui importe tout
-
-### ✅ Comment créer une app multi-fichiers
-
-**Exemple : Dashboard**
-
-**Étape 1 - Hook useLocalStorage:**
-\`\`\`
-write_file("/src/hooks/useLocalStorage.js", "...")
-\`\`\`
-
-**Étape 2 - Composants:**
-\`\`\`
-write_file("/src/components/Sidebar.jsx", "...")
-write_file("/src/components/Header.jsx", "...")
-write_file("/src/components/StatCard.jsx", "...")
-write_file("/src/components/Chart.jsx", "...")
-\`\`\`
-
-**Étape 3 - App principal:**
-\`\`\`
-write_file("/src/App.jsx", "...")
-\`\`\`
-
-### 📝 Template de composant
-
-Chaque composant dans `/src/components/` suit ce pattern:
-
-\`\`\`jsx
-import React from 'react';
-
-export default function NomComposant({ prop1, prop2, onAction }) {
-  return (
-    <div className="...">
-      {/* Contenu */}
-    </div>
-  );
-}
-\`\`\`
-
-### 📝 Template de hook
-
-Chaque hook dans `/src/hooks/` suit ce pattern:
-
-\`\`\`javascript
-import { useState, useEffect } from 'react';
-
-export function useNomHook(initialValue) {
-  const [state, setState] = useState(initialValue);
-  
-  // Logic...
-  
-  return [state, setState];
-}
-\`\`\`
-
-### 📝 Template App.jsx
-
-\`\`\`jsx
-import React, { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import { useLocalStorage } from './hooks/useLocalStorage';
-
-export default function App() {
-  const [data, setData] = useLocalStorage('app-data', []);
-  
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1">
-        <Header />
-        {/* Content */}
-      </main>
-    </div>
-  );
-}
-\`\`\`
+1. **TOUJOURS créer les composants EN PREMIER** avant App.js
+2. **TOUJOURS appeler write_file** pour chaque composant
+3. **DERNIER**: créer App.js qui importe les composants
 
 ### ❌ INTERDIT
-- Mettre > 200 lignes dans un seul fichier
-- Créer App.jsx AVANT les composants
-- Oublier d'importer React dans les composants
-- Utiliser des chemins absolus (utiliser `./components/X`)
+- Mettre tout dans App.js pour une app complexe (>200 lignes)
+- Dire "C'est fait" SANS avoir appelé write_file
+- Créer App.js AVANT les composants
+- Plus de 250 lignes dans un seul fichier
 
-### ✅ IMPORTS CORRECTS
-\`\`\`jsx
-// Dans /src/App.jsx
-import Sidebar from './components/Sidebar';      // ✅
-import { useTheme } from './hooks/useTheme';     // ✅
+### Structure OBLIGATOIRE pour apps complexes
 
-// ❌ PAS comme ça:
-import Sidebar from '/src/components/Sidebar';   // ❌
-import Sidebar from '@/components/Sidebar';      // ❌
 \`\`\`
+/components/Sidebar.js     # CRÉER EN PREMIER
+/components/Header.js      # CRÉER EN DEUXIÈME
+/components/Card.js        # CRÉER EN TROISIÈME
+/components/Modal.js       # CRÉER EN QUATRIÈME
+/App.js                    # CRÉER EN DERNIER (importe les composants)
+\`\`\`
+
+### Comment créer plusieurs fichiers
+
+1. **Créer CHAQUE composant** avec \`write_file\`:
+\`\`\`
+write_file("/components/Sidebar.js", "import React from 'react';\\n\\nexport default function Sidebar() { ... }")
+write_file("/components/Header.js", "import React from 'react';\\n\\nexport default function Header() { ... }")
+write_file("/components/Card.js", "import React from 'react';\\n\\nexport default function Card() { ... }")
+\`\`\`
+
+2. **EN DERNIER** créer App.js qui importe:
+\`\`\`jsx
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import Card from './components/Card';
+\`\`\`
+
+### Règles critiques multi-fichiers
+
+1. **Chaque composant = 1 fichier** avec \`export default function NomComposant()\`
+2. **Imports relatifs** : \`import X from './components/X'\` (sans .js)
+3. **Tous les fichiers** doivent importer React: \`import React from 'react';\`
+4. **Props explicites** : passer les données et callbacks en props
+5. **CRÉER les composants D'ABORD**, App.js EN DERNIER
 
 ### Exemple CORRECT: App Kanban en multi-fichiers
 
-**ORDRE D'APPEL write_file (avec structure /src/):**
+**ORDRE D'APPEL write_file:**
 
-**1. D'ABORD /src/components/Card.jsx:**
+**1. D'ABORD /components/Card.js:**
 \`\`\`jsx
 import React from 'react';
 
@@ -471,7 +395,7 @@ export default function Card({ card, onClick }) {
 }
 \`\`\`
 
-**2. ENSUITE /src/components/Column.jsx:**
+**2. ENSUITE /components/Column.js:**
 \`\`\`jsx
 import React from 'react';
 import Card from './Card';
@@ -497,7 +421,7 @@ export default function Column({ title, cards, onDrop, onCardClick, onAddCard })
 }
 \`\`\`
 
-**3. EN DERNIER /src/App.jsx:**
+**3. EN DERNIER /App.js:**
 \`\`\`jsx
 import React, { useState } from 'react';
 import Column from './components/Column';
