@@ -36,15 +36,29 @@ function sanitizeFileContent(content: string): string {
 }
 
 /**
- * Detect if files use a /src/ structure (Vite-style)
+ * Detect if files use a /src/ structure (Vite-style) or need external dependencies
  */
 function detectProjectStructure(files: Record<string, string>): 'vite' | 'simple' {
   const paths = Object.keys(files)
+  const contents = Object.values(files).join('\n')
+  
   const hasSrcFolder = paths.some(p => p.startsWith('/src/') || p.startsWith('src/'))
   const hasComponents = paths.some(p => p.includes('/components/'))
+  const hasPages = paths.some(p => p.includes('/pages/'))
+  const hasHooks = paths.some(p => p.includes('/hooks/'))
+  const hasUtils = paths.some(p => p.includes('/utils/'))
   
-  // If we have /src/ or /components/, use Vite structure
-  if (hasSrcFolder || hasComponents) {
+  // Check if code imports external npm packages that require bundler support
+  const needsExternalDeps = 
+    contents.includes("from 'react-router-dom'") ||
+    contents.includes('from "react-router-dom"') ||
+    contents.includes("from 'ethers'") ||
+    contents.includes('from "ethers"') ||
+    contents.includes("from '@ethersproject") ||
+    contents.includes("from 'wagmi'")
+  
+  // Force Vite structure for external deps, /src/, or multi-file structures
+  if (hasSrcFolder || hasComponents || hasPages || hasHooks || hasUtils || needsExternalDeps) {
     return 'vite'
   }
   return 'simple'
@@ -117,30 +131,33 @@ body {
     delete prepared['/styles.css']
   }
   
-  // Move any /components/ to /src/components/
-  for (const [path, content] of Object.entries(prepared)) {
-    if (path.startsWith('/components/')) {
-      const newPath = `/src${path}`
-      prepared[newPath] = content
-      delete prepared[path]
+  // Move all subfolders to /src/ for Vite structure
+  const foldersToMove = ['/components/', '/hooks/', '/utils/', '/pages/', '/lib/', '/services/', '/context/']
+  
+  for (const folder of foldersToMove) {
+    for (const [path, content] of Object.entries(prepared)) {
+      if (path.startsWith(folder)) {
+        const newPath = `/src${path}`
+        prepared[newPath] = content
+        delete prepared[path]
+      }
     }
   }
   
-  // Move any /hooks/ to /src/hooks/
-  for (const [path, content] of Object.entries(prepared)) {
-    if (path.startsWith('/hooks/')) {
-      const newPath = `/src${path}`
-      prepared[newPath] = content
-      delete prepared[path]
-    }
+  // Also move standalone files (like /App.js) to /src/ if not already there
+  if (prepared['/App.js'] && !prepared['/src/App.jsx']) {
+    prepared['/src/App.jsx'] = prepared['/App.js']
+    delete prepared['/App.js']
   }
   
-  // Move any /utils/ to /src/utils/
+  // Fix imports in all files to use correct relative paths
+  // Since everything is now under /src/, imports should work
   for (const [path, content] of Object.entries(prepared)) {
-    if (path.startsWith('/utils/')) {
-      const newPath = `/src${path}`
-      prepared[newPath] = content
-      delete prepared[path]
+    if (path.endsWith('.jsx') || path.endsWith('.js')) {
+      // Update imports to use .jsx extension if needed
+      let updatedContent = content
+      // No need to change paths since everything is at same level under /src/
+      prepared[path] = updatedContent
     }
   }
   
