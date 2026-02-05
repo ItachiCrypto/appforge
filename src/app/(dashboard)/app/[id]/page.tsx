@@ -183,6 +183,8 @@ export default function AppEditorPage() {
               hasAppJs: !!normalized['/App.js'],
             })
             setFiles(normalized)
+            // FIX BUG #16: Force Sandpack remount when loading files from DB
+            setPreviewVersion(v => v + 1)
           }
 
           if (app.vercelUrl) {
