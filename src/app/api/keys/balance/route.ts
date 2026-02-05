@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
       select: {
         openaiKey: true,
         anthropicKey: true,
+        kimiKey: true,
       },
     })
 
@@ -29,9 +30,11 @@ export async function GET(req: NextRequest) {
     const result: {
       openai: { configured: boolean; balance?: number; error?: string }
       anthropic: { configured: boolean; balance?: number; error?: string }
+      kimi: { configured: boolean; balance?: number; error?: string }
     } = {
       openai: { configured: false },
       anthropic: { configured: false },
+      kimi: { configured: false },
     }
 
     // Check OpenAI balance
@@ -105,6 +108,36 @@ export async function GET(req: NextRequest) {
         }
       } catch (e) {
         result.anthropic.error = 'Failed to check'
+      }
+    }
+
+    // Check Kimi (Moonshot AI) balance
+    if (user.kimiKey) {
+      result.kimi.configured = true
+      try {
+        // Kimi uses OpenAI-compatible API
+        const response = await fetch('https://api.moonshot.cn/v1/models', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${user.kimiKey}`,
+          },
+        })
+
+        if (response.ok) {
+          result.kimi.balance = -1 // Valid but balance unknown
+        } else {
+          const error = await response.json().catch(() => ({}))
+          if (response.status === 429) {
+            result.kimi.balance = 0
+            result.kimi.error = 'Rate limited'
+          } else if (response.status === 401) {
+            result.kimi.error = 'Invalid API key'
+          } else {
+            result.kimi.error = error?.error?.message || 'Unknown error'
+          }
+        }
+      } catch (e) {
+        result.kimi.error = 'Failed to check'
       }
     }
 

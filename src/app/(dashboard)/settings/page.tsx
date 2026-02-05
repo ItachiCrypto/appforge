@@ -15,6 +15,7 @@ interface UserData {
   plan: string
   openaiKey: boolean
   anthropicKey: boolean
+  kimiKey: boolean
   creditBalance: number
 }
 
@@ -22,7 +23,7 @@ interface ModelOption {
   value: string
   label: string
   description: string
-  provider: 'anthropic' | 'openai'
+  provider: 'anthropic' | 'openai' | 'kimi'
 }
 
 const AI_MODELS: ModelOption[] = [
@@ -35,6 +36,8 @@ const AI_MODELS: ModelOption[] = [
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Abordable', provider: 'openai' },
   { value: 'o1', label: 'o1', description: 'Raisonnement avancé', provider: 'openai' },
   { value: 'o1-mini', label: 'o1 Mini', description: 'Raisonnement rapide', provider: 'openai' },
+  // Kimi (Moonshot AI)
+  { value: 'kimi-k2.5', label: 'Kimi K2.5', description: 'Raisonnement multimodal puissant', provider: 'kimi' },
 ]
 
 export default function SettingsPage() {
@@ -46,6 +49,7 @@ export default function SettingsPage() {
   const [keys, setKeys] = useState({
     openai: '',
     anthropic: '',
+    kimi: '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -59,15 +63,18 @@ export default function SettingsPage() {
   const [keyStatus, setKeyStatus] = useState<{
     openai: { configured: boolean; balance?: number; error?: string; checking?: boolean }
     anthropic: { configured: boolean; balance?: number; error?: string; checking?: boolean }
+    kimi: { configured: boolean; balance?: number; error?: string; checking?: boolean }
   }>({
     openai: { configured: false },
     anthropic: { configured: false },
+    kimi: { configured: false },
   })
   
   const checkKeyBalances = async () => {
     setKeyStatus(prev => ({
       openai: { ...prev.openai, checking: true },
       anthropic: { ...prev.anthropic, checking: true },
+      kimi: { ...prev.kimi, checking: true },
     }))
     
     try {
@@ -95,7 +102,7 @@ export default function SettingsPage() {
           setUserData(data)
           
           // Check key balances if user has keys
-          if (data.openaiKey || data.anthropicKey) {
+          if (data.openaiKey || data.anthropicKey || data.kimiKey) {
             checkKeyBalances()
           }
         }
@@ -127,18 +134,19 @@ export default function SettingsPage() {
         body: JSON.stringify({
           openaiKey: keys.openai || undefined,
           anthropicKey: keys.anthropic || undefined,
+          kimiKey: keys.kimi || undefined,
         }),
       })
       
       if (res.ok) {
         const data = await res.json()
         setUserData(data)
-        setKeys({ openai: '', anthropic: '' })
+        setKeys({ openai: '', anthropic: '', kimi: '' })
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
         
         // Re-check key balances after saving
-        if (data.openaiKey || data.anthropicKey) {
+        if (data.openaiKey || data.anthropicKey || data.kimiKey) {
           setTimeout(() => checkKeyBalances(), 500)
         }
       }
@@ -253,10 +261,21 @@ export default function SettingsPage() {
             status={keyStatus.anthropic}
           />
           
+          <ApiKeyInput
+            label="Clé API Kimi (Moonshot AI)"
+            placeholder="sk-..."
+            value={keys.kimi}
+            onChange={(v) => setKeys({ ...keys, kimi: v })}
+            hasExisting={userData?.kimiKey || false}
+            show={showKeys.kimi}
+            onToggleShow={() => setShowKeys({ ...showKeys, kimi: !showKeys.kimi })}
+            status={keyStatus.kimi}
+          />
+          
           <div className="flex items-center gap-4">
             <Button 
               onClick={handleSaveKeys} 
-              disabled={saving || (!keys.openai && !keys.anthropic)}
+              disabled={saving || (!keys.openai && !keys.anthropic && !keys.kimi)}
             >
               {saving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -284,7 +303,7 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             {/* Anthropic Models */}
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -336,6 +355,32 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+            
+            {/* Kimi Models */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded bg-purple-500/10 flex items-center justify-center">
+                  <span className="text-purple-500 text-xs font-bold">K</span>
+                </div>
+                <span className="font-medium">Kimi (Moonshot)</span>
+                {!userData?.kimiKey && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    Pas de clé API
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-2">
+                {AI_MODELS.filter(m => m.provider === 'kimi').map(model => (
+                  <ModelButton
+                    key={model.value}
+                    model={model}
+                    selected={selectedModel === model.value}
+                    disabled={!userData?.kimiKey}
+                    onClick={() => handleModelChange(model.value)}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
           
           {savingModel && (
@@ -351,7 +396,7 @@ export default function SettingsPage() {
             </div>
           )}
           
-          {!userData?.openaiKey && !userData?.anthropicKey && (
+          {!userData?.openaiKey && !userData?.anthropicKey && !userData?.kimiKey && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
               <p className="text-sm text-yellow-600 dark:text-yellow-400">
                 <Zap className="h-4 w-4 inline mr-1" />
@@ -412,7 +457,7 @@ export default function SettingsPage() {
             </div>
           </div>
           
-          {(userData?.openaiKey || userData?.anthropicKey) && (
+          {(userData?.openaiKey || userData?.anthropicKey || userData?.kimiKey) && (
             <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <p className="text-sm text-green-600 dark:text-green-400">
                 <Check className="h-4 w-4 inline mr-1" />
@@ -441,7 +486,7 @@ export default function SettingsPage() {
                   <Badge variant={userData?.plan === 'FREE' ? 'secondary' : 'default'}>
                     {userData?.plan || 'FREE'}
                   </Badge>
-                  {(userData?.openaiKey || userData?.anthropicKey) && (
+                  {(userData?.openaiKey || userData?.anthropicKey || userData?.kimiKey) && (
                     <Badge variant="outline" className="text-green-500 border-green-500/30">
                       BYOK Actif
                     </Badge>

@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       plan: user.plan,
       openaiKey: !!user.openaiKey,
       anthropicKey: !!user.anthropicKey,
+      kimiKey: !!user.kimiKey,
       creditBalance: user.creditBalance,
     })
   } catch (error) {
@@ -51,14 +52,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Parse and validate request body
-    let body: { openaiKey?: string | null; anthropicKey?: string | null }
+    let body: { openaiKey?: string | null; anthropicKey?: string | null; kimiKey?: string | null }
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const { openaiKey, anthropicKey } = body
+    const { openaiKey, anthropicKey, kimiKey } = body
 
     // Validate API key formats (basic validation)
     if (openaiKey !== undefined && openaiKey !== null) {
@@ -79,19 +80,30 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    if (kimiKey !== undefined && kimiKey !== null) {
+      if (typeof kimiKey !== 'string') {
+        return NextResponse.json({ error: 'kimiKey must be a string' }, { status: 400 })
+      }
+      if (kimiKey.length > 0 && !kimiKey.startsWith('sk-')) {
+        return NextResponse.json({ error: 'Invalid Kimi API key format' }, { status: 400 })
+      }
+    }
+
     // In production, encrypt these keys before storing
     // For MVP, we'll store them as-is (not recommended for production!)
     
     // Determine if BYOK should be enabled (auto-enable when adding a key)
     const willHaveOpenai = openaiKey !== undefined ? !!openaiKey : !!user.openaiKey
     const willHaveAnthropic = anthropicKey !== undefined ? !!anthropicKey : !!user.anthropicKey
-    const shouldEnableByok = willHaveOpenai || willHaveAnthropic
+    const willHaveKimi = kimiKey !== undefined ? !!kimiKey : !!user.kimiKey
+    const shouldEnableByok = willHaveOpenai || willHaveAnthropic || willHaveKimi
     
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         ...(openaiKey !== undefined && { openaiKey }),
         ...(anthropicKey !== undefined && { anthropicKey }),
+        ...(kimiKey !== undefined && { kimiKey }),
         byokEnabled: shouldEnableByok,
       },
     })
@@ -103,6 +115,7 @@ export async function PATCH(req: NextRequest) {
       plan: updatedUser.plan,
       openaiKey: !!updatedUser.openaiKey,
       anthropicKey: !!updatedUser.anthropicKey,
+      kimiKey: !!updatedUser.kimiKey,
     })
   } catch (error) {
     console.error('Update user error:', error)
