@@ -18,23 +18,16 @@ interface WebPreviewProps {
 
 /**
  * Sanitize file content to prevent common parsing errors
- * - Fixes broken Unicode escape sequences
- * - Removes invalid characters
  */
 function sanitizeFileContent(content: string): string {
   if (typeof content !== 'string') {
     return String(content || '')
   }
   
-  // Fix broken Unicode escape sequences like \uXXX (missing digit) or \u without hex
-  // Replace malformed \uXXXX sequences with a placeholder or fix them
   let sanitized = content
-  
-  // Match \u followed by less than 4 hex digits (incomplete escape)
   sanitized = sanitized.replace(/\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g, (match, hex) => {
-    // Pad with zeros to make valid unicode or replace with space
     if (hex.length === 0) {
-      return '\\\\u' // Escape the backslash to show literal \u
+      return '\\\\u'
     }
     return '\\u' + hex.padStart(4, '0')
   })
@@ -43,40 +36,134 @@ function sanitizeFileContent(content: string): string {
 }
 
 /**
- * Validate and normalize files for Sandpack
+ * Detect if files use a /src/ structure (Vite-style)
  */
-function prepareFilesForSandpack(files: Record<string, string>): Record<string, string> {
+function detectProjectStructure(files: Record<string, string>): 'vite' | 'simple' {
+  const paths = Object.keys(files)
+  const hasSrcFolder = paths.some(p => p.startsWith('/src/') || p.startsWith('src/'))
+  const hasComponents = paths.some(p => p.includes('/components/'))
+  
+  // If we have /src/ or /components/, use Vite structure
+  if (hasSrcFolder || hasComponents) {
+    return 'vite'
+  }
+  return 'simple'
+}
+
+/**
+ * Prepare files for Vite template (with /src/ structure)
+ */
+function prepareViteFiles(files: Record<string, string>): Record<string, string> {
   const prepared: Record<string, string> = {}
   
-  console.log('[WebPreview] prepareFilesForSandpack input:', {
-    fileCount: Object.keys(files).length,
-    filePaths: Object.keys(files),
-  })
-  
   for (const [path, content] of Object.entries(files)) {
-    // Skip empty or null content
-    if (content === null || content === undefined) {
-      console.log('[WebPreview] Skipping null/undefined content for:', path)
-      continue
-    }
+    if (content === null || content === undefined) continue
     
-    // Ensure path starts with /
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    let normalizedPath = path.startsWith('/') ? path : `/${path}`
     
-    // Sanitize content
+    // Normalize .jsx/.tsx to .jsx for Sandpack compatibility
+    normalizedPath = normalizedPath.replace(/\.tsx?$/, '.jsx')
+    
     prepared[normalizedPath] = sanitizeFileContent(content)
   }
   
-  console.log('[WebPreview] After normalization:', {
-    fileCount: Object.keys(prepared).length,
-    filePaths: Object.keys(prepared),
-    hasAppJs: !!prepared['/App.js'],
-    hasAppTsx: !!prepared['/App.tsx'],
-  })
+  // Ensure we have the required Vite entry files
+  if (!prepared['/src/App.jsx'] && !prepared['/App.jsx']) {
+    // Check if there's an App.js and move it to /src/
+    if (prepared['/App.js']) {
+      prepared['/src/App.jsx'] = prepared['/App.js']
+      delete prepared['/App.js']
+    } else {
+      // Create default App
+      prepared['/src/App.jsx'] = `export default function App() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+      <div className="text-center text-white">
+        <h1 className="text-4xl font-bold mb-4">Welcome to Your App</h1>
+        <p className="text-xl opacity-80">Start building something amazing!</p>
+      </div>
+    </div>
+  )
+}`
+    }
+  }
+  
+  // Ensure main.jsx exists for Vite
+  if (!prepared['/src/main.jsx']) {
+    prepared['/src/main.jsx'] = `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)`
+  }
+  
+  // Ensure index.css exists
+  if (!prepared['/src/index.css']) {
+    prepared['/src/index.css'] = prepared['/styles.css'] || `
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+`
+    delete prepared['/styles.css']
+  }
+  
+  // Move any /components/ to /src/components/
+  for (const [path, content] of Object.entries(prepared)) {
+    if (path.startsWith('/components/')) {
+      const newPath = `/src${path}`
+      prepared[newPath] = content
+      delete prepared[path]
+    }
+  }
+  
+  // Move any /hooks/ to /src/hooks/
+  for (const [path, content] of Object.entries(prepared)) {
+    if (path.startsWith('/hooks/')) {
+      const newPath = `/src${path}`
+      prepared[newPath] = content
+      delete prepared[path]
+    }
+  }
+  
+  // Move any /utils/ to /src/utils/
+  for (const [path, content] of Object.entries(prepared)) {
+    if (path.startsWith('/utils/')) {
+      const newPath = `/src${path}`
+      prepared[newPath] = content
+      delete prepared[path]
+    }
+  }
+  
+  console.log('[WebPreview] Vite structure prepared:', Object.keys(prepared))
+  
+  return prepared
+}
+
+/**
+ * Prepare files for simple React template (legacy)
+ */
+function prepareSimpleFiles(files: Record<string, string>): Record<string, string> {
+  const prepared: Record<string, string> = {}
+  
+  for (const [path, content] of Object.entries(files)) {
+    if (content === null || content === undefined) continue
+    
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    prepared[normalizedPath] = sanitizeFileContent(content)
+  }
   
   // Ensure we have at least an App.js file
   if (!prepared['/App.js'] && !prepared['/App.tsx']) {
-    console.warn('[WebPreview] No App.js found! Adding default template. Original files:', Object.keys(files))
     prepared['/App.js'] = `export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -89,6 +176,8 @@ function prepareFilesForSandpack(files: Record<string, string>): Record<string, 
 }`
   }
   
+  console.log('[WebPreview] Simple structure prepared:', Object.keys(prepared))
+  
   return prepared
 }
 
@@ -99,7 +188,6 @@ function SandpackPreviewInner({ showCode }: { showCode: boolean }) {
   const { sandpack } = useSandpack()
   const [hasError, setHasError] = useState(false)
   
-  // Listen for Sandpack errors
   useEffect(() => {
     const checkErrors = () => {
       if (sandpack.error) {
@@ -168,7 +256,7 @@ function PreviewFallback({
   onRetry?: () => void 
 }) {
   const [showRawCode, setShowRawCode] = useState(false)
-  const mainFile = files['/App.js'] || files['/App.tsx'] || Object.values(files)[0]
+  const mainFile = files['/src/App.jsx'] || files['/App.js'] || files['/App.tsx'] || Object.values(files)[0]
   
   return (
     <div className="h-full flex flex-col">
@@ -218,25 +306,33 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
   const [key, setKey] = useState(0)
   const [loadError, setLoadError] = useState<Error | null>(null)
   
-  // Prepare and memoize files
-  const preparedFiles = useMemo(() => {
+  // Detect structure and prepare files accordingly
+  const { preparedFiles, template } = useMemo(() => {
     try {
-      return prepareFilesForSandpack(files)
+      const structure = detectProjectStructure(files)
+      console.log('[WebPreview] Detected structure:', structure)
+      
+      if (structure === 'vite') {
+        return {
+          preparedFiles: prepareViteFiles(files),
+          template: 'vite-react' as const
+        }
+      }
+      
+      return {
+        preparedFiles: prepareSimpleFiles(files),
+        template: 'react' as const
+      }
     } catch (err) {
       console.error('Failed to prepare files:', err)
       setLoadError(err instanceof Error ? err : new Error('Failed to prepare files'))
-      return {}
+      return { preparedFiles: {}, template: 'react' as const }
     }
   }, [files])
   
   const handleRetry = useCallback(() => {
     setLoadError(null)
     setKey(k => k + 1)
-  }, [])
-  
-  const handleError = useCallback((error: Error) => {
-    console.error('WebPreview error:', error)
-    setLoadError(error)
   }, [])
   
   // If files couldn't be prepared, show fallback
@@ -262,7 +358,7 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
       onReset={handleRetry}
     >
       <SandpackProvider
-        template="react"
+        template={template}
         files={preparedFiles}
         theme="auto"
         options={{
