@@ -511,9 +511,11 @@ async function streamAnthropicWithTools(options: StreamOptions) {
   const anthropic = new Anthropic({ apiKey })
   const tools = enableTools ? toAnthropicTools() : undefined
   
-  // BUG FIX #2: Force write_file tool for new apps, otherwise auto
+  // BUG FIX #2 + #15: Force tool usage for code-related requests
+  // Use 'required' (any tool) instead of 'auto' to ensure AI uses tools when needed
+  // Only truly neutral questions should skip tools
   const toolChoice = enableTools 
-    ? (isNewApp ? { type: 'tool' as const, name: 'write_file' } : { type: 'auto' as const })
+    ? (isNewApp ? { type: 'tool' as const, name: 'write_file' } : { type: 'required' as const })
     : undefined
   
   // Build conversation messages
@@ -755,9 +757,10 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
   const tools = enableTools ? toOpenAITools() : undefined
   console.log('[OpenAI] Tools enabled:', enableTools, 'isNewApp:', isNewApp, 'Model:', apiModelName)
   
-  // BUG FIX #2: Force write_file tool for new apps, otherwise auto
+  // BUG FIX #2 + #15: Force tool usage for code-related requests
+  // Use 'required' (any tool) instead of 'auto' to ensure AI uses tools when needed
   const toolChoice = enableTools 
-    ? (isNewApp ? { type: 'function' as const, function: { name: 'write_file' } } : 'auto' as const)
+    ? (isNewApp ? { type: 'function' as const, function: { name: 'write_file' } } : 'required' as const)
     : undefined
 
   // Build conversation
