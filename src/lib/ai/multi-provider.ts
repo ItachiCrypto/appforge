@@ -7,6 +7,7 @@
 import { AI_MODELS, getModel, calculateCost, type ModelKey } from './models'
 import { generateAnthropic, type Message } from './anthropic'
 import { generateOpenAI } from './openai-provider'
+import { generateKimi } from './kimi-provider'
 
 export interface GenerateResult {
   content: string
@@ -75,7 +76,7 @@ export async function generateWithModel(
   try {
     let result: { content: string; inputTokens: number; outputTokens: number }
     
-    const provider = model.provider as 'anthropic' | 'openai'
+    const provider = model.provider as 'anthropic' | 'openai' | 'kimi'
     
     if (provider === 'anthropic') {
       result = await generateAnthropic(
@@ -90,6 +91,13 @@ export async function generateWithModel(
         messages,
         apiKey,
         maxTokens
+      )
+    } else if (provider === 'kimi') {
+      result = await generateKimi(
+        model.modelId,
+        messages,
+        apiKey,
+        { maxTokens }
       )
     } else {
       throw new AIServiceError(
@@ -151,9 +159,9 @@ export function isValidModel(modelKey: string): modelKey is ModelKey {
 /**
  * Get the provider for a model
  */
-export function getProviderForModel(modelKey: string): 'anthropic' | 'openai' | null {
+export function getProviderForModel(modelKey: string): 'anthropic' | 'openai' | 'kimi' | null {
   const model = getModel(modelKey)
-  return model?.provider as 'anthropic' | 'openai' | null
+  return model?.provider as 'anthropic' | 'openai' | 'kimi' | null
 }
 
 // Re-export types and utilities

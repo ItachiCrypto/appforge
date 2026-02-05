@@ -97,11 +97,23 @@ export const AI_MODELS = {
     maxTokens: 16384,
     contextWindow: 128000,
   },
+  
+  // Kimi Models (Moonshot AI)
+  'kimi-k2.5': {
+    provider: 'kimi',
+    modelId: 'kimi-k2.5',
+    displayName: 'Kimi K2.5',
+    description: 'Powerful multimodal reasoning model',
+    inputCostPer1M: 2,
+    outputCostPer1M: 8,
+    maxTokens: 8192,
+    contextWindow: 131072,
+  },
 } as const
 
 export type ModelKey = keyof typeof AI_MODELS
 export type ModelConfig = (typeof AI_MODELS)[ModelKey]
-export type Provider = 'anthropic' | 'openai'
+export type Provider = 'anthropic' | 'openai' | 'kimi'
 
 /**
  * Get model configuration by key

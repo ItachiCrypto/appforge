@@ -24,6 +24,7 @@ enum Provider {
   ANTHROPIC
   OPENAI
   GOOGLE      // Pour Gemini future
+  KIMI        // Moonshot AI
 }
 
 enum PurchaseStatus {
@@ -153,6 +154,7 @@ model User {
   byokEnabled   Boolean   @default(false)
   openaiKey     String?   // encrypted
   anthropicKey  String?   // encrypted
+  kimiKey       String?   // encrypted - Moonshot AI
   
   // Preferred AI Model
   preferredModelId String?

@@ -62,7 +62,11 @@ const MODEL_API_NAMES: Record<string, string> = {
   'gpt-4-turbo': 'gpt-4-turbo',
   'o1': 'o1',
   'o1-mini': 'o1-mini',
+  'kimi-k2.5': 'kimi-k2.5',
 }
+
+// Kimi API base URL
+const KIMI_BASE_URL = 'https://api.moonshot.cn/v1'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -122,25 +126,41 @@ export async function POST(req: NextRequest) {
     // Check available platform keys
     const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
     const hasOpenAIKey = !!process.env.OPENAI_API_KEY
+    const hasKimiKey = !!process.env.KIMI_API_KEY
     
-    // Smart fallback: if requested provider has no key, try the other
-    const isRequestedAnthropic = modelKey.startsWith('claude')
-    if (isRequestedAnthropic && !hasAnthropicKey && hasOpenAIKey && !user.byokEnabled) {
-      // Fallback to OpenAI
-      modelKey = 'gpt-4o'
-    } else if (!isRequestedAnthropic && !hasOpenAIKey && hasAnthropicKey && !user.byokEnabled) {
-      // Fallback to Anthropic
-      modelKey = 'claude-sonnet-4'
+    // Detect provider from model key
+    const isKimiModel = modelKey.startsWith('kimi')
+    const isAnthropicModel = modelKey.startsWith('claude')
+    const isOpenAIModel = !isKimiModel && !isAnthropicModel
+    
+    // Smart fallback: if requested provider has no key, try another
+    if (isAnthropicModel && !hasAnthropicKey && !user.byokEnabled) {
+      if (hasKimiKey) modelKey = 'kimi-k2.5'
+      else if (hasOpenAIKey) modelKey = 'gpt-4o'
+    } else if (isOpenAIModel && !hasOpenAIKey && !user.byokEnabled) {
+      if (hasKimiKey) modelKey = 'kimi-k2.5'
+      else if (hasAnthropicKey) modelKey = 'claude-sonnet-4'
+    } else if (isKimiModel && !hasKimiKey && !user.byokEnabled) {
+      if (hasAnthropicKey) modelKey = 'claude-sonnet-4'
+      else if (hasOpenAIKey) modelKey = 'gpt-4o'
     }
     
-    const isAnthropicModel = modelKey.startsWith('claude')
+    // Recalculate provider after potential fallback
+    const finalIsKimiModel = modelKey.startsWith('kimi')
+    const finalIsAnthropicModel = modelKey.startsWith('claude')
     const apiModelName = MODEL_API_NAMES[modelKey] || modelKey
 
-    // Get keys
-    const userKey = isAnthropicModel ? user.anthropicKey : user.openaiKey
-    const platformKey = isAnthropicModel 
+    // Get keys based on provider
+    const userKey = finalIsAnthropicModel 
+      ? user.anthropicKey 
+      : finalIsKimiModel 
+        ? user.kimiKey
+        : user.openaiKey
+    const platformKey = finalIsAnthropicModel 
       ? process.env.ANTHROPIC_API_KEY 
-      : process.env.OPENAI_API_KEY
+      : finalIsKimiModel
+        ? process.env.KIMI_API_KEY
+        : process.env.OPENAI_API_KEY
 
     // Determine which key to use
     // Priority: 1) BYOK if enabled and key exists, 2) Platform API with credits
@@ -205,9 +225,11 @@ export async function POST(req: NextRequest) {
       modelKey,
       hasAnthropicKey,
       hasOpenAIKey,
+      hasKimiKey,
       apiKeyPresent: !!apiKey,
       useBYOK,
-      isAnthropicModel,
+      isAnthropicModel: finalIsAnthropicModel,
+      isKimiModel: finalIsKimiModel,
     })
 
     // Get app/project context
@@ -329,7 +351,7 @@ export async function POST(req: NextRequest) {
             toolsWereUsed = true
           }
           
-          if (isAnthropicModel) {
+          if (finalIsAnthropicModel) {
             await streamAnthropicWithTools({
               apiKey,
               apiModelName,
@@ -349,6 +371,7 @@ export async function POST(req: NextRequest) {
               onWriteTool,
             })
           } else {
+            // OpenAI and Kimi both use OpenAI-compatible API
             await streamOpenAIWithTools({
               apiKey,
               apiModelName,
@@ -365,6 +388,7 @@ export async function POST(req: NextRequest) {
                 fullContent += text
               },
               onWriteTool,
+              baseURL: finalIsKimiModel ? KIMI_BASE_URL : undefined,
             })
           }
           
@@ -736,6 +760,7 @@ interface OpenAIStreamOptions {
   onTokens: (input: number, output: number) => void
   onContent: (text: string) => void
   onWriteTool?: () => void  // FIX BUG #14: Called when write_file/update_file succeeds
+  baseURL?: string  // Custom base URL for Kimi/other OpenAI-compatible providers
 }
 
 async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
@@ -749,13 +774,15 @@ async function streamOpenAIWithTools(options: OpenAIStreamOptions) {
     send, 
     onTokens, 
     onContent,
-    onWriteTool
+    onWriteTool,
+    baseURL
   } = options
 
-  console.log('[OpenAI] Initializing with key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO KEY')
-  const openai = new OpenAI({ apiKey })
+  const providerName = baseURL ? 'Kimi' : 'OpenAI'
+  console.log(`[${providerName}] Initializing with key:`, apiKey ? `${apiKey.substring(0, 10)}...` : 'NO KEY')
+  const openai = new OpenAI({ apiKey, baseURL })
   const tools = enableTools ? toOpenAITools() : undefined
-  console.log('[OpenAI] Tools enabled:', enableTools, 'isNewApp:', isNewApp, 'Model:', apiModelName)
+  console.log(`[${providerName}] Tools enabled:`, enableTools, 'isNewApp:', isNewApp, 'Model:', apiModelName)
   
   // BUG FIX #2 + #15: Force tool usage for code-related requests
   // Use 'required' (any tool) instead of 'auto' to ensure AI uses tools when needed
