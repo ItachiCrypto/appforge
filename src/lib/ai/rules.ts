@@ -283,4 +283,133 @@ useEffect(() => {
 
 ---
 
-*Ces règles ne sont pas des suggestions. Les suivre = apps qui marchent. Les ignorer = bugs garantis.*`;
+*Ces règles ne sont pas des suggestions. Les suivre = apps qui marchent. Les ignorer = bugs garantis.*
+
+---
+
+## 🎨 Rule 11: Design Excellence - OBLIGATOIRE
+
+**Chaque app doit être visuellement impressionnante. Pas de design "basique".**
+
+### 🌈 Backgrounds OBLIGATOIRES
+\`\`\`jsx
+// TOUJOURS un gradient moderne - JAMAIS juste bg-white ou bg-gray-100
+className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500"
+className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-indigo-900"
+\`\`\`
+
+### ✨ Glassmorphism sur les cards
+\`\`\`jsx
+// Cards avec effet glass - OBLIGATOIRE
+className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl"
+className="bg-black/20 backdrop-blur-lg border border-white/10 rounded-xl"
+\`\`\`
+
+### 🎭 Animations OBLIGATOIRES
+\`\`\`jsx
+// Hover effects sur TOUS les éléments interactifs
+className="hover:scale-105 hover:shadow-2xl transition-all duration-300"
+className="hover:bg-white/20 hover:-translate-y-1 transition-all duration-200"
+
+// Entrée des éléments
+className="animate-fade-in" // ou transition au mount
+\`\`\`
+
+### 🔘 Boutons modernes
+\`\`\`jsx
+// Boutons avec gradients et effets
+className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+
+// Boutons outline glass
+className="border-2 border-white/30 bg-white/5 backdrop-blur hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg transition-all"
+\`\`\`
+
+### 📊 Stats/Cards design
+\`\`\`jsx
+// Card avec glow effect
+<div className="relative group">
+  <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300" />
+  <div className="relative bg-slate-900 rounded-2xl p-6">
+    {/* contenu */}
+  </div>
+</div>
+\`\`\`
+
+### 🎯 Typographie moderne
+\`\`\`jsx
+// Titres avec gradient
+<h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+
+// Sous-titres lisibles
+<p className="text-lg text-white/70">
+\`\`\`
+
+### 🚫 INTERDIT (design pauvre)
+\`\`\`jsx
+// ❌ Backgrounds plats ennuyeux
+className="bg-white" // ❌
+className="bg-gray-100" // ❌
+className="bg-slate-50" // ❌
+
+// ❌ Cards sans effet
+className="bg-white rounded shadow" // ❌ Trop basique
+
+// ❌ Boutons sans style
+className="bg-blue-500 text-white px-4 py-2" // ❌ Trop simple
+
+// ❌ Pas d'animations
+<button>Click</button> // ❌ Manque transition/hover
+\`\`\`
+
+### ✅ Checklist Design (VÉRIFIER CHAQUE APP)
+- [ ] Background = gradient (pas de couleur plate)
+- [ ] Cards = glassmorphism avec backdrop-blur
+- [ ] Boutons = gradient + shadow + hover effect
+- [ ] Textes = contrastes forts, titres en gradient si possible
+- [ ] Animations = hover sur tout, transitions smooth
+- [ ] Spacing = généreux (p-6, gap-6, margins larges)
+- [ ] Rounded = toujours xl ou 2xl (pas de coins carrés)
+
+---
+
+## ⚡ Rule 12: Interactivité Complète
+
+**Chaque élément cliquable DOIT avoir une action qui fonctionne.**
+
+### Boutons de navigation
+\`\`\`jsx
+// Navigation avec useState - PATTERN OBLIGATOIRE
+const [currentPage, setCurrentPage] = useState('home');
+
+<button 
+  onClick={() => setCurrentPage('settings')}
+  className={currentPage === 'settings' ? 'bg-white/20' : 'hover:bg-white/10'}
+>
+  Settings
+</button>
+
+// Rendu conditionnel
+{currentPage === 'home' && <HomePage />}
+{currentPage === 'settings' && <SettingsPage />}
+\`\`\`
+
+### Boutons d'action
+\`\`\`jsx
+// CHAQUE bouton = une fonction qui fait quelque chose
+<button onClick={() => setItems([...items, newItem])}>Ajouter</button>
+<button onClick={() => setShowModal(true)}>Détails</button>
+<button onClick={() => deleteItem(id)}>Supprimer</button>
+\`\`\`
+
+### ❌ INTERDIT - Boutons décoratifs
+\`\`\`jsx
+// ❌ Bouton sans onClick
+<button className="...">Action</button>
+
+// ❌ Bouton avec onClick vide ou commenté
+<button onClick={() => {}}>Fake Button</button>
+<button onClick={() => console.log('todo')}>Coming Soon</button>
+\`\`\`
+
+---`;

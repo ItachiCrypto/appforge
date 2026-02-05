@@ -91,14 +91,32 @@ Si l'user demande ça → explique gentiment et propose des alternatives mock.
 - **Toutes les fonctionnalités** listées dans SKILLS.md
 - **Persistance localStorage** obligatoire
 - **Empty states, hover states, transitions**
-- **Design moderne et professionnel**
+
+### 🎨 DESIGN PREMIUM OBLIGATOIRE (Rule 11)
+**Chaque app doit être visuellement impressionnante:**
+- ✅ **Background**: TOUJOURS gradient sombre (from-slate-900 via-purple-900 to-slate-900)
+- ✅ **Cards**: Glassmorphism (bg-white/10 backdrop-blur-xl border-white/20)
+- ✅ **Boutons**: Gradient + shadow + hover scale (from-purple-500 to-pink-500)
+- ✅ **Textes**: Titres en gradient (bg-gradient-to-r ... bg-clip-text text-transparent)
+- ✅ **Animations**: hover:scale-105 transition-all duration-300 sur TOUT
+- ✅ **Spacing**: Généreux (p-6, p-8, gap-4, gap-6)
+- ✅ **Rounded**: Toujours xl ou 2xl (rounded-xl, rounded-2xl, rounded-3xl)
+
+**❌ INTERDIT**: bg-white, bg-gray-100, design plat, boutons sans hover
 
 ---
 
-## 📝 EXEMPLE COMPLET - Todo App
+## 📝 EXEMPLE COMPLET - Todo App (Design Premium)
 
 **NOTE IMPORTANTE:** Cet exemple simple est dans un seul fichier car c'est une app < 200 lignes.
 Pour les apps complexes (Kanban, Notion, Dashboard, CRM, E-commerce), tu DOIS utiliser plusieurs fichiers comme décrit dans TOOLS_SYSTEM_PROMPT.
+
+**🎨 CE DESIGN EST LE STANDARD MINIMUM - Observe les détails:**
+- Background gradient sombre et moderne
+- Glassmorphism sur la card principale
+- Boutons avec gradient et effets hover
+- Animations sur tous les éléments interactifs
+- Typographie avec gradient sur le titre
 
 Voici le pattern EXACT à suivre :
 
@@ -121,32 +139,18 @@ export default function App() {
     localStorage.setItem('todos', JSON.stringify(todos));
   }, [todos]);
 
-  // HANDLERS - Fonctions nommées
+  // HANDLERS
   const addTodo = () => {
     if (!input.trim()) return;
     setTodos([...todos, { id: Date.now(), text: input, completed: false }]);
     setInput('');
   };
 
-  const deleteTodo = (id) => {
-    setTodos(todos.filter(t => t.id !== id));
-  };
+  const deleteTodo = (id) => setTodos(todos.filter(t => t.id !== id));
+  const toggleTodo = (id) => setTodos(todos.map(t => t.id === id ? {...t, completed: !t.completed} : t));
+  const startEdit = (todo) => { setEditId(todo.id); setEditText(todo.text); };
+  const saveEdit = () => { setTodos(todos.map(t => t.id === editId ? {...t, text: editText} : t)); setEditId(null); };
 
-  const toggleTodo = (id) => {
-    setTodos(todos.map(t => t.id === id ? {...t, completed: !t.completed} : t));
-  };
-
-  const startEdit = (todo) => {
-    setEditId(todo.id);
-    setEditText(todo.text);
-  };
-
-  const saveEdit = () => {
-    setTodos(todos.map(t => t.id === editId ? {...t, text: editText} : t));
-    setEditId(null);
-  };
-
-  // FILTERED DATA
   const filteredTodos = todos.filter(t => {
     if (filter === 'active') return !t.completed;
     if (filter === 'completed') return t.completed;
@@ -156,99 +160,118 @@ export default function App() {
   const remaining = todos.filter(t => !t.completed).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 p-4">
-      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-6">
-        <h1 className="text-2xl font-bold text-center mb-6">📝 TaskMaster</h1>
+    // 🎨 BACKGROUND: Toujours un gradient sombre et moderne
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-8">
+      {/* 🎨 CARD PRINCIPALE: Glassmorphism obligatoire */}
+      <div className="max-w-lg mx-auto">
+        {/* Glow effect derrière la card */}
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 blur-3xl" />
         
-        {/* INPUT - onClick avec arrow function */}
-        <div className="flex gap-2 mb-4">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addTodo()}
-            placeholder="Nouvelle tâche..."
-            className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-          />
-          <button
-            onClick={() => addTodo()}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-          >
-            ➕
-          </button>
-        </div>
-
-        {/* FILTRES */}
-        <div className="flex gap-2 mb-4">
-          {['all', 'active', 'completed'].map(f => (
+        <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl p-8">
+          {/* 🎨 TITRE: Gradient text */}
+          <h1 className="text-3xl md:text-4xl font-bold text-center mb-8 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+            ✨ TaskMaster
+          </h1>
+          
+          {/* INPUT avec style glass */}
+          <div className="flex gap-3 mb-6">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+              placeholder="Nouvelle tâche..."
+              className="flex-1 px-5 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
+            />
+            {/* 🎨 BOUTON: Gradient + shadow + hover effect */}
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={\`px-3 py-1 rounded-full text-sm transition-colors \${
-                filter === f ? 'bg-purple-500 text-white' : 'bg-gray-100 hover:bg-gray-200'
-              }\`}
+              onClick={() => addTodo()}
+              className="px-5 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-105 transition-all duration-300"
             >
-              {f === 'all' ? 'Toutes' : f === 'active' ? 'Actives' : 'Terminées'}
-            </button>
-          ))}
-        </div>
-
-        {/* LISTE */}
-        <div className="space-y-2">
-          {filteredTodos.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">Aucune tâche 🎉</p>
-          ) : (
-            filteredTodos.map(todo => (
-              <div
-                key={todo.id}
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg group hover:bg-gray-100 transition-all"
-              >
-                <input
-                  type="checkbox"
-                  checked={todo.completed}
-                  onChange={() => toggleTodo(todo.id)}
-                  className="w-5 h-5 rounded"
-                />
-                {editId === todo.id ? (
-                  <input
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onBlur={() => saveEdit()}
-                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                    autoFocus
-                    className="flex-1 px-2 py-1 border rounded"
-                  />
-                ) : (
-                  <span
-                    onDoubleClick={() => startEdit(todo)}
-                    className={\`flex-1 \${todo.completed ? 'line-through text-gray-400' : ''}\`}
-                  >
-                    {todo.text}
-                  </span>
-                )}
-                <button
-                  onClick={() => deleteTodo(todo.id)}
-                  className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
-                  aria-label="Supprimer"
-                >
-                  🗑️
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* FOOTER */}
-        {todos.length > 0 && (
-          <div className="mt-4 pt-4 border-t flex justify-between text-sm text-gray-500">
-            <span>{remaining} tâche{remaining !== 1 ? 's' : ''} restante{remaining !== 1 ? 's' : ''}</span>
-            <button
-              onClick={() => setTodos(todos.filter(t => !t.completed))}
-              className="text-red-500 hover:text-red-700"
-            >
-              Supprimer terminées
+              ➕
             </button>
           </div>
-        )}
+
+          {/* FILTRES avec style pill */}
+          <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-xl">
+            {['all', 'active', 'completed'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={\`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 \${
+                  filter === f 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' 
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }\`}
+              >
+                {f === 'all' ? '📋 Toutes' : f === 'active' ? '⏳ Actives' : '✅ Terminées'}
+              </button>
+            ))}
+          </div>
+
+          {/* LISTE avec animations */}
+          <div className="space-y-3">
+            {filteredTodos.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-6xl mb-4">🎉</p>
+                <p className="text-white/40">Aucune tâche pour le moment</p>
+              </div>
+            ) : (
+              filteredTodos.map((todo, index) => (
+                <div
+                  key={todo.id}
+                  style={{ animationDelay: \`\${index * 50}ms\` }}
+                  className="flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl group transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+                >
+                  <input
+                    type="checkbox"
+                    checked={todo.completed}
+                    onChange={() => toggleTodo(todo.id)}
+                    className="w-5 h-5 rounded-lg bg-white/10 border-white/20 checked:bg-gradient-to-r checked:from-purple-500 checked:to-pink-500"
+                  />
+                  {editId === todo.id ? (
+                    <input
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onBlur={() => saveEdit()}
+                      onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                      autoFocus
+                      className="flex-1 px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={() => startEdit(todo)}
+                      className={\`flex-1 cursor-pointer \${todo.completed ? 'line-through text-white/40' : 'text-white'}\`}
+                    >
+                      {todo.text}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => deleteTodo(todo.id)}
+                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all duration-300"
+                    aria-label="Supprimer"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* FOOTER avec stats */}
+          {todos.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center text-sm">
+              <span className="text-white/60">
+                {remaining} tâche{remaining !== 1 ? 's' : ''} restante{remaining !== 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={() => setTodos(todos.filter(t => !t.completed))}
+                className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all duration-300"
+              >
+                Supprimer terminées
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
