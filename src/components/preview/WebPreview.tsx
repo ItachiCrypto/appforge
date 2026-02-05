@@ -223,20 +223,12 @@ function SandpackPreviewInner({ showCode }: { showCode: boolean }) {
       <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-red-50 dark:bg-red-950/20 rounded-lg">
         <AlertTriangle className="w-10 h-10 text-red-500 mb-3" />
         <h3 className="font-medium text-lg mb-1 text-red-700 dark:text-red-400">Preview Error</h3>
-        <p className="text-sm text-red-600/80 dark:text-red-400/80 mb-4 max-w-md font-mono">
+        <p className="text-sm text-red-600/80 dark:text-red-400/80 max-w-md font-mono">
           {sandpack.error.message}
         </p>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => {
-            setHasError(false)
-            sandpack.resetAllFiles()
-          }}
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Reset Files
-        </Button>
+        <p className="text-xs text-muted-foreground mt-3">
+          Utilisez le chat pour corriger cette erreur
+        </p>
       </div>
     )
   }
