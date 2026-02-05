@@ -324,26 +324,40 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
   const [loadError, setLoadError] = useState<Error | null>(null)
   
   // Detect structure and prepare files accordingly
-  const { preparedFiles, template } = useMemo(() => {
+  const { preparedFiles, template, needsExternalDeps } = useMemo(() => {
     try {
       const structure = detectProjectStructure(files)
-      console.log('[WebPreview] Detected structure:', structure)
+      const contents = Object.values(files).join('\n')
+      const hasExternalDeps = 
+        contents.includes("from 'react-router-dom'") ||
+        contents.includes('from "react-router-dom"') ||
+        contents.includes("from 'ethers'") ||
+        contents.includes('from "ethers"')
+      
+      console.log('[WebPreview] v2 Detected structure:', structure, 'needsExternalDeps:', hasExternalDeps)
+      console.log('[WebPreview] v2 Input file paths:', Object.keys(files))
       
       if (structure === 'vite') {
+        const prepared = prepareViteFiles(files)
+        console.log('[WebPreview] v2 Prepared Vite files:', Object.keys(prepared))
         return {
-          preparedFiles: prepareViteFiles(files),
-          template: 'vite-react' as const
+          preparedFiles: prepared,
+          template: 'vite-react' as const,
+          needsExternalDeps: hasExternalDeps
         }
       }
       
+      const prepared = prepareSimpleFiles(files)
+      console.log('[WebPreview] v2 Prepared simple files:', Object.keys(prepared))
       return {
-        preparedFiles: prepareSimpleFiles(files),
-        template: 'react' as const
+        preparedFiles: prepared,
+        template: 'react' as const,
+        needsExternalDeps: hasExternalDeps
       }
     } catch (err) {
       console.error('Failed to prepare files:', err)
       setLoadError(err instanceof Error ? err : new Error('Failed to prepare files'))
-      return { preparedFiles: {}, template: 'react' as const }
+      return { preparedFiles: {}, template: 'react' as const, needsExternalDeps: false }
     }
   }, [files])
   
@@ -363,6 +377,26 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
     )
   }
   
+  // Build dependencies based on what's actually needed
+  const dependencies: Record<string, string> = {}
+  if (needsExternalDeps) {
+    const contents = Object.values(files).join('\n')
+    if (contents.includes('react-router-dom')) {
+      dependencies['react-router-dom'] = '^6.20.0'
+    }
+    if (contents.includes('ethers')) {
+      dependencies['ethers'] = '^5.7.2'
+    }
+  }
+  
+  console.log('[WebPreview] v2 Rendering with:', {
+    template,
+    fileCount: Object.keys(preparedFiles).length,
+    filePaths: Object.keys(preparedFiles),
+    dependencies,
+    needsExternalDeps
+  })
+  
   return (
     <ErrorBoundary
       key={key}
@@ -378,12 +412,7 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
         template={template}
         files={preparedFiles}
         theme="auto"
-        customSetup={{
-          dependencies: {
-            "react-router-dom": "^6.20.0",
-            "ethers": "^5.7.2",
-          }
-        }}
+        customSetup={needsExternalDeps ? { dependencies } : undefined}
         options={{
           externalResources: [
             "https://cdn.tailwindcss.com",
@@ -397,4 +426,4 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
     </ErrorBoundary>
   )
 }
-// Trigger redeploy Thu Feb  5 01:26:25 PM CET 2026
+// WebPreview v2 - External deps support - Thu Feb 5 13:45 CET 2026
