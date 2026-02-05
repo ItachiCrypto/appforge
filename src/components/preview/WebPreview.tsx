@@ -361,6 +361,12 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
         template={template}
         files={preparedFiles}
         theme="auto"
+        customSetup={{
+          dependencies: {
+            "react-router-dom": "^6.20.0",
+            "ethers": "^5.7.2",
+          }
+        }}
         options={{
           externalResources: [
             "https://cdn.tailwindcss.com",
