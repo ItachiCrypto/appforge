@@ -48,9 +48,15 @@ function sanitizeFileContent(content: string): string {
 function prepareFilesForSandpack(files: Record<string, string>): Record<string, string> {
   const prepared: Record<string, string> = {}
   
+  console.log('[WebPreview] prepareFilesForSandpack input:', {
+    fileCount: Object.keys(files).length,
+    filePaths: Object.keys(files),
+  })
+  
   for (const [path, content] of Object.entries(files)) {
     // Skip empty or null content
     if (content === null || content === undefined) {
+      console.log('[WebPreview] Skipping null/undefined content for:', path)
       continue
     }
     
@@ -61,8 +67,16 @@ function prepareFilesForSandpack(files: Record<string, string>): Record<string, 
     prepared[normalizedPath] = sanitizeFileContent(content)
   }
   
+  console.log('[WebPreview] After normalization:', {
+    fileCount: Object.keys(prepared).length,
+    filePaths: Object.keys(prepared),
+    hasAppJs: !!prepared['/App.js'],
+    hasAppTsx: !!prepared['/App.tsx'],
+  })
+  
   // Ensure we have at least an App.js file
   if (!prepared['/App.js'] && !prepared['/App.tsx']) {
+    console.warn('[WebPreview] No App.js found! Adding default template. Original files:', Object.keys(files))
     prepared['/App.js'] = `export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">

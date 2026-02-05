@@ -150,6 +150,13 @@ export default function AppEditorPage() {
 
           // CRITICAL FIX: If DB has no files, save DEFAULT_FILES to DB
           // This ensures AI tools can read files that exist in preview
+          console.log('[App] Loaded files from DB:', {
+            hasFiles: !!app.files,
+            fileCount: app.files ? Object.keys(app.files).length : 0,
+            filePaths: app.files ? Object.keys(app.files) : [],
+            sampleContent: app.files?.['/App.js']?.substring(0, 100) || app.files?.['App.js']?.substring(0, 100) || 'N/A',
+          })
+
           if (!app.files || Object.keys(app.files).length === 0) {
             const defaultFiles = DEFAULT_FILES[type] || DEFAULT_FILES.WEB
             console.log('[App] No files in DB, saving DEFAULT_FILES:', Object.keys(defaultFiles))
@@ -169,7 +176,13 @@ export default function AppEditorPage() {
             setFiles(defaultFiles)
           } else {
             // Normalize files to .js for Sandpack compatibility (in case DB has .tsx)
-            setFiles(normalizeFilesForSandpack(app.files))
+            const normalized = normalizeFilesForSandpack(app.files)
+            console.log('[App] Normalized files:', {
+              originalPaths: Object.keys(app.files),
+              normalizedPaths: Object.keys(normalized),
+              hasAppJs: !!normalized['/App.js'],
+            })
+            setFiles(normalized)
           }
 
           if (app.vercelUrl) {
@@ -204,6 +217,8 @@ export default function AppEditorPage() {
     if (initialPrompt && !hasInitialized.current && isAppLoaded) {
       hasInitialized.current = true
       void handleSend(initialPrompt)
+      // Clear initialPrompt after sending to prevent future messages from being treated as initial
+      setInitialPrompt(null)
     }
   }, [initialPrompt, isAppLoaded])
 
@@ -280,6 +295,10 @@ export default function AppEditorPage() {
     // BUG FIX #12: Track tool names by ID for real-time file refresh
     const toolNameById = new Map<string, string>()
 
+    // BUG FIX: Detect if this is the initial prompt (new app generation)
+    // Don't send currentFiles for new apps so backend detects isNewApp=true and forces write_file
+    const isInitialGeneration = messages.length === 0 && initialPrompt
+    
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -288,8 +307,9 @@ export default function AppEditorPage() {
           appId,
           // Enable AI tools for on-demand file access (reduces token usage ~70%)
           enableTools: true,
-          // Still send currentFiles for: 1) fallback mode 2) preview sync
-          currentFiles: files,
+          // Don't send currentFiles for initial generation - let backend detect isNewApp
+          // This ensures tool_choice is forced to write_file for new apps
+          currentFiles: isInitialGeneration ? undefined : files,
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content,

@@ -368,6 +368,13 @@ export default function NewAppPage() {
     setError(null)
 
     try {
+      console.log('[Wizard] Creating app:', {
+        name: appName || `Mon ${templateData.name}`,
+        template: selectedTemplate,
+        hasPrompt: !!templateData.prompt,
+        promptLength: templateData.prompt?.length,
+      })
+
       const res = await fetch('/api/apps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -387,17 +394,38 @@ export default function NewAppPage() {
         }),
       })
 
+      console.log('[Wizard] API response status:', res.status)
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || `Erreur ${res.status}`)
+        let errorData: { error?: string } = {}
+        try {
+          errorData = await res.json()
+        } catch (parseErr) {
+          console.error('[Wizard] Failed to parse error response:', parseErr)
+        }
+        throw new Error(errorData?.error || `Erreur serveur ${res.status}`)
       }
 
-      const app = await res.json()
+      let app: { id?: string } | null = null
+      try {
+        app = await res.json()
+      } catch (parseErr) {
+        console.error('[Wizard] Failed to parse success response:', parseErr)
+        throw new Error('Réponse invalide du serveur')
+      }
+
+      if (!app || !app.id) {
+        console.error('[Wizard] Invalid app response:', app)
+        throw new Error('App créée mais ID manquant')
+      }
+
+      console.log('[Wizard] App created:', app.id)
       // No longer passing prompt in URL - it's stored in app.metadata.initialPrompt
       router.push(`/app/${app.id}`)
     } catch (err) {
-      console.error('Create app error:', err)
-      setError(err instanceof Error ? err.message : 'Erreur lors de la création')
+      console.error('[Wizard] Create app error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création'
+      setError(errorMessage)
       setIsLoading(false)
     }
   }
