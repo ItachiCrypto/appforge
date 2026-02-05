@@ -321,8 +321,15 @@ export default function AppEditorPage() {
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        const errorMessage = data.error || 'Échec de l\'envoi du message'
+        // FIX: Handle null/undefined response body safely
+        let errorMessage = 'Échec de l\'envoi du message'
+        try {
+          const data = await res.json()
+          errorMessage = data?.error || errorMessage
+        } catch {
+          // JSON parse failed - use default error message
+          errorMessage = `Erreur serveur (${res.status})`
+        }
         const actionHint = getErrorActionHint(errorMessage)
         
         setMessages(prev => prev.map(m => 
