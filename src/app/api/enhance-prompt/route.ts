@@ -3,6 +3,8 @@
  * 
  * Takes a user's rough app idea and enhances it into a detailed prompt
  * optimized for the AI builder.
+ * 
+ * Uses the same model/key logic as the chat API but with faster models.
  */
 
 import { NextRequest } from 'next/server'
@@ -58,46 +60,17 @@ Crée une application de prise de notes style Notion avec un design dark mode pr
 - Animations fluides sur toutes les actions
 - Modal de confirmation pour suppression`
 
+// Fast models for each provider (cheap and quick for prompt enhancement)
+const FAST_MODELS = {
+  anthropic: 'claude-3-5-haiku-20241022',
+  openai: 'gpt-4o-mini',
+  kimi: 'moonshot-v1-8k',
+}
+
+const KIMI_BASE_URL = 'https://api.moonshot.cn/v1'
+
 export const runtime = 'nodejs'
 export const maxDuration = 30
-
-// Helper to try Anthropic
-async function tryAnthropic(apiKey: string, userPrompt: string): Promise<string | null> {
-  try {
-    const anthropic = new Anthropic({ apiKey })
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 1024,
-      system: ENHANCE_SYSTEM_PROMPT,
-      messages: [
-        { role: 'user', content: `Améliore cette idée d'application:\n\n${userPrompt}` }
-      ],
-    })
-    return response.content[0].type === 'text' ? response.content[0].text : null
-  } catch (error) {
-    console.error('[Enhance] Anthropic failed:', error instanceof Error ? error.message : error)
-    return null
-  }
-}
-
-// Helper to try OpenAI
-async function tryOpenAI(apiKey: string, userPrompt: string, baseURL?: string): Promise<string | null> {
-  try {
-    const openai = new OpenAI({ apiKey, baseURL })
-    const response = await openai.chat.completions.create({
-      model: baseURL ? 'moonshot-v1-8k' : 'gpt-4o-mini',
-      max_tokens: 1024,
-      messages: [
-        { role: 'system', content: ENHANCE_SYSTEM_PROMPT },
-        { role: 'user', content: `Améliore cette idée d'application:\n\n${userPrompt}` }
-      ],
-    })
-    return response.choices[0]?.message?.content || null
-  } catch (error) {
-    console.error('[Enhance] OpenAI/Kimi failed:', error instanceof Error ? error.message : error)
-    return null
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -121,59 +94,77 @@ export async function POST(req: NextRequest) {
 
     const userPrompt = prompt.trim()
 
-    // Get user for BYOK
+    // Get user with preferred model (same as chat API)
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
+      include: { preferredModel: true },
     })
 
-    // Collect available keys with priority
-    // Priority: BYOK > Platform keys
-    // Order: OpenAI > Kimi > Anthropic (since Anthropic platform key may be invalid)
-    const providers: Array<{ name: string; fn: () => Promise<string | null> }> = []
-
-    // BYOK keys first (user's own keys are more reliable)
-    if (user?.byokEnabled) {
-      if (user.openaiKey) {
-        providers.push({ 
-          name: 'OpenAI (BYOK)', 
-          fn: () => tryOpenAI(user.openaiKey!, userPrompt) 
-        })
-      }
-      if (user.kimiKey) {
-        providers.push({ 
-          name: 'Kimi (BYOK)', 
-          fn: () => tryOpenAI(user.kimiKey!, userPrompt, 'https://api.moonshot.cn/v1') 
-        })
-      }
-      if (user.anthropicKey) {
-        providers.push({ 
-          name: 'Anthropic (BYOK)', 
-          fn: () => tryAnthropic(user.anthropicKey!, userPrompt) 
-        })
-      }
-    }
-
-    // Platform keys (OpenAI and Kimi first, Anthropic last due to potential key issues)
-    if (process.env.OPENAI_API_KEY) {
-      providers.push({ 
-        name: 'OpenAI', 
-        fn: () => tryOpenAI(process.env.OPENAI_API_KEY!, userPrompt) 
-      })
-    }
-    if (process.env.KIMI_API_KEY) {
-      providers.push({ 
-        name: 'Kimi', 
-        fn: () => tryOpenAI(process.env.KIMI_API_KEY!, userPrompt, 'https://api.moonshot.cn/v1') 
-      })
-    }
-    if (process.env.ANTHROPIC_API_KEY) {
-      providers.push({ 
-        name: 'Anthropic', 
-        fn: () => tryAnthropic(process.env.ANTHROPIC_API_KEY!, userPrompt) 
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    if (providers.length === 0) {
+    // Determine provider from user's preferred model (same logic as chat API)
+    const preferredModelKey = user.preferredModel?.modelId || 'gpt-4o'
+    
+    // Check available platform keys
+    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
+    const hasOpenAIKey = !!process.env.OPENAI_API_KEY
+    const hasKimiKey = !!process.env.KIMI_API_KEY
+    
+    // Detect provider from preferred model
+    let provider: 'anthropic' | 'openai' | 'kimi'
+    if (preferredModelKey.startsWith('kimi')) {
+      provider = 'kimi'
+    } else if (preferredModelKey.startsWith('claude')) {
+      provider = 'anthropic'
+    } else {
+      provider = 'openai'
+    }
+    
+    // Smart fallback: if preferred provider has no key (and no BYOK), switch to another
+    if (provider === 'anthropic' && !hasAnthropicKey && !(user.byokEnabled && user.anthropicKey)) {
+      if (hasOpenAIKey || (user.byokEnabled && user.openaiKey)) provider = 'openai'
+      else if (hasKimiKey || (user.byokEnabled && user.kimiKey)) provider = 'kimi'
+    } else if (provider === 'openai' && !hasOpenAIKey && !(user.byokEnabled && user.openaiKey)) {
+      if (hasKimiKey || (user.byokEnabled && user.kimiKey)) provider = 'kimi'
+      else if (hasAnthropicKey || (user.byokEnabled && user.anthropicKey)) provider = 'anthropic'
+    } else if (provider === 'kimi' && !hasKimiKey && !(user.byokEnabled && user.kimiKey)) {
+      if (hasOpenAIKey || (user.byokEnabled && user.openaiKey)) provider = 'openai'
+      else if (hasAnthropicKey || (user.byokEnabled && user.anthropicKey)) provider = 'anthropic'
+    }
+
+    // Get the appropriate API key (BYOK takes priority, same as chat API)
+    let apiKey: string | null = null
+    let useBYOK = false
+
+    if (provider === 'anthropic') {
+      if (user.byokEnabled && user.anthropicKey) {
+        apiKey = user.anthropicKey
+        useBYOK = true
+      } else if (hasAnthropicKey) {
+        apiKey = process.env.ANTHROPIC_API_KEY!
+      }
+    } else if (provider === 'openai') {
+      if (user.byokEnabled && user.openaiKey) {
+        apiKey = user.openaiKey
+        useBYOK = true
+      } else if (hasOpenAIKey) {
+        apiKey = process.env.OPENAI_API_KEY!
+      }
+    } else if (provider === 'kimi') {
+      if (user.byokEnabled && user.kimiKey) {
+        apiKey = user.kimiKey
+        useBYOK = true
+      } else if (hasKimiKey) {
+        apiKey = process.env.KIMI_API_KEY!
+      }
+    }
+
+    if (!apiKey) {
       return new Response(JSON.stringify({ 
         error: 'Aucune clé API disponible. Ajoutez votre clé dans Paramètres.',
         code: 'NO_API_KEY' 
@@ -183,26 +174,59 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Try each provider in order until one works
-    let enhancedPrompt: string | null = null
-    let usedProvider: string | null = null
+    console.log('[Enhance] Using provider:', provider, 'BYOK:', useBYOK)
 
-    for (const provider of providers) {
-      console.log(`[Enhance] Trying ${provider.name}...`)
-      enhancedPrompt = await provider.fn()
-      if (enhancedPrompt) {
-        usedProvider = provider.name
-        console.log(`[Enhance] Success with ${provider.name}`)
-        break
+    let enhancedPrompt: string
+
+    try {
+      if (provider === 'anthropic') {
+        const anthropic = new Anthropic({ apiKey })
+        const response = await anthropic.messages.create({
+          model: FAST_MODELS.anthropic,
+          max_tokens: 1024,
+          system: ENHANCE_SYSTEM_PROMPT,
+          messages: [
+            { role: 'user', content: `Améliore cette idée d'application:\n\n${userPrompt}` }
+          ],
+        })
+        enhancedPrompt = response.content[0].type === 'text' ? response.content[0].text : ''
+      } else {
+        // OpenAI and Kimi use the same API
+        const openai = new OpenAI({ 
+          apiKey, 
+          baseURL: provider === 'kimi' ? KIMI_BASE_URL : undefined 
+        })
+        const response = await openai.chat.completions.create({
+          model: provider === 'kimi' ? FAST_MODELS.kimi : FAST_MODELS.openai,
+          max_tokens: 1024,
+          messages: [
+            { role: 'system', content: ENHANCE_SYSTEM_PROMPT },
+            { role: 'user', content: `Améliore cette idée d'application:\n\n${userPrompt}` }
+          ],
+        })
+        enhancedPrompt = response.choices[0]?.message?.content || ''
       }
+    } catch (apiError) {
+      console.error('[Enhance] API error:', apiError)
+      const errorMsg = apiError instanceof Error ? apiError.message : String(apiError)
+      
+      // If it's an auth error and using platform key, suggest BYOK
+      if (errorMsg.includes('invalid') || errorMsg.includes('401') || errorMsg.includes('authentication')) {
+        return new Response(JSON.stringify({ 
+          error: `Erreur d'authentification ${provider}. Ajoutez votre propre clé API dans Paramètres.`,
+          code: 'AUTH_ERROR' 
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      
+      throw apiError
     }
 
     if (!enhancedPrompt) {
-      return new Response(JSON.stringify({ 
-        error: 'Tous les providers IA ont échoué. Réessayez plus tard.',
-        code: 'ALL_PROVIDERS_FAILED' 
-      }), {
-        status: 503,
+      return new Response(JSON.stringify({ error: 'Échec de l\'amélioration du prompt' }), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       })
     }
@@ -210,7 +234,8 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ 
       originalPrompt: userPrompt,
       enhancedPrompt: enhancedPrompt.trim(),
-      provider: usedProvider,
+      provider,
+      usedBYOK: useBYOK,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
