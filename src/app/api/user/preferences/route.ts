@@ -122,8 +122,13 @@ export async function PUT(req: NextRequest) {
       })
       
       if (!aiModel) {
-        // Create the model record
-        const provider = preferredModel.startsWith('claude') ? 'ANTHROPIC' : 'OPENAI'
+        // Create the model record - detect provider from model name
+        let provider: 'OPENAI' | 'ANTHROPIC' | 'KIMI' | 'GOOGLE' = 'OPENAI'
+        if (preferredModel.startsWith('claude')) {
+          provider = 'ANTHROPIC'
+        } else if (preferredModel.startsWith('kimi')) {
+          provider = 'KIMI'
+        }
         const pricing = MODEL_PRICING[preferredModel]
         
         aiModel = await prisma.aIModel.create({
