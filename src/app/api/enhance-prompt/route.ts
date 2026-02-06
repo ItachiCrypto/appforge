@@ -122,7 +122,7 @@ const FAST_MODELS = {
   kimi: 'moonshot-v1-8k',
 }
 
-const KIMI_BASE_URL = 'https://api.moonshot.cn/v1'
+const KIMI_BASE_URL = 'https://api.moonshot.ai/v1'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30

@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
       result.kimi.configured = true
       try {
         // Kimi uses OpenAI-compatible API
-        const response = await fetch('https://api.moonshot.cn/v1/models', {
+        const response = await fetch('https://api.moonshot.ai/v1/models', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${user.kimiKey}`,

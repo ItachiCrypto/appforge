@@ -6,7 +6,7 @@
 import OpenAI from 'openai'
 
 // Kimi API endpoint (international)
-const KIMI_BASE_URL = 'https://api.moonshot.cn/v1'
+const KIMI_BASE_URL = 'https://api.moonshot.ai/v1'
 
 export function getKimiClient(apiKey?: string): OpenAI {
   const key = apiKey || process.env.KIMI_API_KEY
