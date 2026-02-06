@@ -343,6 +343,7 @@ export default function NewAppPage() {
   
   // Custom flow state
   const [customPrompt, setCustomPrompt] = useState('')
+  const [appBrief, setAppBrief] = useState('') // BMAD App Brief
   const [enhancedPrompt, setEnhancedPrompt] = useState('')
   const [isEnhancing, setIsEnhancing] = useState(false)
   const [enhanceError, setEnhanceError] = useState<string | null>(null)
@@ -403,6 +404,7 @@ export default function NewAppPage() {
         throw new Error(data.error || 'Erreur lors de l\'amélioration')
       }
       
+      setAppBrief(data.appBrief || data.enhancedPrompt)
       setEnhancedPrompt(data.enhancedPrompt)
       setStep(2) // Move to enhanced prompt view
     } catch (err) {
@@ -436,7 +438,8 @@ export default function NewAppPage() {
         metadata: {
           primaryColor: selectedColor,
           customIdea: true,
-          originalPrompt: customPrompt,
+          originalIdea: customPrompt, // User's original idea
+          appBrief: appBrief, // BMAD App Brief - source of truth
         },
         initialPrompt: enhancedPrompt,
       } : {
@@ -508,6 +511,7 @@ export default function NewAppPage() {
     setSelectedSaas([])
     setSelectedTemplate(null)
     setCustomPrompt('')
+    setAppBrief('')
     setEnhancedPrompt('')
     setAppName('')
     setError(null)
@@ -694,7 +698,7 @@ export default function NewAppPage() {
 
             <div className="max-w-2xl mx-auto">
               <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-6">
-                {/* Original prompt */}
+                {/* Original idea */}
                 <div className="space-y-2">
                   <p className="text-sm text-white/50 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-white/30" />
@@ -705,16 +709,42 @@ export default function NewAppPage() {
                   </p>
                 </div>
 
-                {/* Enhanced prompt */}
+                {/* App Brief (BMAD) */}
                 <div className="space-y-3">
                   <p className="text-sm text-white/70 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-violet-400" />
-                    Version améliorée par l'IA
+                    App Brief généré (méthode BMAD)
                   </p>
-                  <div className="p-5 bg-gradient-to-br from-violet-500/10 to-pink-500/10 border border-violet-500/20 rounded-xl">
-                    <p className="text-white whitespace-pre-wrap text-sm leading-relaxed">
-                      {enhancedPrompt}
-                    </p>
+                  <div className="p-5 bg-gradient-to-br from-violet-500/10 to-pink-500/10 border border-violet-500/20 rounded-xl max-h-[400px] overflow-y-auto">
+                    <div className="text-white text-sm leading-relaxed prose prose-invert prose-sm max-w-none
+                      prose-headings:text-white prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
+                      prose-h2:text-lg prose-h3:text-base
+                      prose-p:my-2 prose-ul:my-2 prose-li:my-0.5
+                      prose-strong:text-violet-300
+                    ">
+                      {appBrief.split('\n').map((line, i) => {
+                        // Format headings
+                        if (line.startsWith('## ')) {
+                          return <h2 key={i} className="text-lg font-bold mt-4 mb-2">{line.replace('## ', '')}</h2>
+                        }
+                        if (line.startsWith('### ')) {
+                          return <h3 key={i} className="text-base font-semibold mt-3 mb-1 text-violet-300">{line.replace('### ', '')}</h3>
+                        }
+                        if (line.startsWith('- ')) {
+                          return <p key={i} className="pl-4 my-1">• {line.replace('- ', '')}</p>
+                        }
+                        if (line.match(/^\d+\. /)) {
+                          return <p key={i} className="pl-4 my-1">{line}</p>
+                        }
+                        if (line.trim() === '---') {
+                          return <hr key={i} className="my-4 border-white/10" />
+                        }
+                        if (line.trim()) {
+                          return <p key={i} className="my-2">{line}</p>
+                        }
+                        return null
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -725,7 +755,7 @@ export default function NewAppPage() {
                   className="flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors"
                 >
                   <RefreshCw className={cn("w-4 h-4", isEnhancing && "animate-spin")} />
-                  Régénérer une autre version
+                  Régénérer un autre brief
                 </button>
               </div>
 

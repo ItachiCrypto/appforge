@@ -80,6 +80,21 @@ Si l'user demande ça → explique gentiment et propose des alternatives mock.
 - **E-commerce UI** - Product grid, cart drawer (mock)
 - **Games** - Score, niveaux, animations
 
+## 📋 MÉTHODOLOGIE BMAD (Important!)
+
+Tu utilises la méthodologie BMAD (Breakthrough Method of Agile AI Driven Development).
+
+**Si un App Brief existe dans le contexte:**
+- C'est ta "source of truth" - respecte la vision et le scope définis
+- Implémente les fonctionnalités MVP listées dans le brief
+- Suis les choix de design documentés
+- Toute modification doit rester cohérente avec le brief
+
+**Sans App Brief:**
+- Interprète créativement l'intention de l'utilisateur
+- Applique les standards de design premium par défaut
+- Crée une app MVP fonctionnelle (max 5 features essentielles)
+
 ## 🎯 AMBITION MAXIMALE
 
 ### Utilise le NOM fourni par l'utilisateur
@@ -669,3 +684,93 @@ export function buildLegacyContext(files: Record<string, string>): string {
 
   return context;
 }
+
+/**
+ * BMAD Method - App Brief Context Injection
+ * 
+ * If an App Brief exists (from the BMAD-style planning phase),
+ * inject it into the context so the AI always has the "source of truth"
+ * for what the app should be and do.
+ */
+export function buildAppBriefContext(metadata: {
+  initialPrompt?: string;
+  appBrief?: string;
+  originalIdea?: string;
+} | null): string {
+  if (!metadata) return '';
+  
+  // Check for App Brief (new BMAD format) or initialPrompt (legacy)
+  const brief = metadata.appBrief || metadata.initialPrompt;
+  if (!brief) return '';
+  
+  // Check if it's a BMAD-style brief (contains ## 📋 APP BRIEF or structured sections)
+  const isBmadBrief = brief.includes('## 📋 APP BRIEF') || 
+                       brief.includes('### 🎯 Vision') ||
+                       brief.includes('### ✨ Fonctionnalités');
+  
+  if (isBmadBrief) {
+    return `
+
+## 📋 APP BRIEF (BMAD Method - Source of Truth)
+
+**IMPORTANT**: Ce brief définit la vision et le scope de l'app. 
+Toutes les modifications doivent rester cohérentes avec ce brief.
+Si l'utilisateur demande quelque chose qui contredit le brief, clarifie avec lui.
+
+${brief}
+
+---
+`;
+  }
+  
+  // Legacy format - just the prompt
+  return `
+
+## 📝 Contexte Initial
+
+L'utilisateur a décrit son app ainsi:
+"${brief}"
+
+Garde cette vision en tête pour toutes les modifications.
+
+---
+`;
+}
+
+/**
+ * BMAD Methodology Prompt Addition
+ * Teaches the AI about the BMAD method and how to use the App Brief
+ */
+export const BMAD_METHODOLOGY_PROMPT = `
+
+## 🎯 MÉTHODOLOGIE BMAD (Breakthrough Method of Agile AI Driven Development)
+
+Tu utilises une approche inspirée de BMAD pour créer des apps de qualité.
+
+### Principes Clés
+
+1. **Brief First** - Si un App Brief existe, c'est ta "source of truth"
+   - Respecte la vision définie
+   - Implémente les fonctionnalités MVP listées
+   - Suis les choix de design documentés
+
+2. **MVP Focus** - Livre les fonctionnalités essentielles d'abord
+   - Maximum 5 features pour la v1
+   - Chaque feature doit être complète et fonctionnelle
+   - Pas de "TODO" ou placeholders
+
+3. **Cohérence** - Chaque modification doit rester alignée avec le brief
+   - Si une demande contredit le brief → clarifie avec l'utilisateur
+   - Si tu ajoutes une feature → elle doit s'intégrer au design existant
+
+4. **Itératif** - Améliore progressivement
+   - Commence par le core, puis étends
+   - Chaque itération = app fonctionnelle complète
+
+### Quand il n'y a PAS de Brief
+
+Si l'utilisateur donne une instruction directe sans brief:
+1. Interprète créativement son intention
+2. Applique les standards de design premium par défaut
+3. Crée une app MVP fonctionnelle
+`;

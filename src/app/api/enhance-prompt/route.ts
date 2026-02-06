@@ -1,10 +1,10 @@
 /**
- * Prompt Enhancement API
+ * Prompt Enhancement API - BMAD Method Integration
  * 
- * Takes a user's rough app idea and enhances it into a detailed prompt
- * optimized for the AI builder.
+ * Takes a user's rough app idea and creates a structured "App Brief"
+ * following the BMAD (Breakthrough Method of Agile AI Driven Development) methodology.
  * 
- * Uses the same model/key logic as the chat API but with faster models.
+ * The App Brief acts as a lightweight PRD that stays with the app for context.
  */
 
 import { NextRequest } from 'next/server'
@@ -13,54 +13,109 @@ import { prisma } from '@/lib/prisma'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 
-const ENHANCE_SYSTEM_PROMPT = `Tu es un expert en product design et en rédaction de prompts pour IA.
+// BMAD-inspired App Brief generator prompt
+const BMAD_BRIEF_PROMPT = `Tu es un Product Manager expert utilisant la méthodologie BMAD (Breakthrough Method of Agile AI Driven Development).
 
 ## TON RÔLE
 
-L'utilisateur va te donner une idée d'application vague ou simple.
-Tu dois transformer cette idée en un prompt détaillé et optimisé qui permettra à une IA de créer une application web exceptionnelle.
+L'utilisateur va te donner une idée d'application. Tu dois créer un **App Brief** structuré qui servira de guide pour le développement.
+
+## FORMAT DE L'APP BRIEF
+
+Génère EXACTEMENT ce format (en gardant les titres en français) :
+
+---
+## 📋 APP BRIEF
+
+### 🎯 Vision
+[1-2 phrases décrivant le but de l'app et le problème qu'elle résout]
+
+### 👥 Utilisateurs Cibles
+[Qui va utiliser cette app ? Quel est leur profil ?]
+
+### ✨ Fonctionnalités MVP
+[Liste numérotée des fonctionnalités essentielles - 5 max]
+1. [Fonctionnalité principale]
+2. [Fonctionnalité secondaire]
+3. ...
+
+### 🎨 Design & UX
+- **Style**: [Dark mode premium / Light minimal / etc.]
+- **Couleurs**: [Palette suggérée - gradients, accents]
+- **Layout**: [Description du layout principal]
+- **Animations**: [Types d'animations attendues]
+
+### 📱 Écrans Principaux
+[Liste des vues/écrans de l'app]
+- [Écran 1]: [Description courte]
+- [Écran 2]: [Description courte]
+
+### 💾 Données & État
+- **Persistance**: localStorage (obligatoire)
+- **État principal**: [Quelles données sont gérées ?]
+
+### ⚠️ Hors Scope (Limitations)
+[Ce que l'app NE FAIT PAS - important pour gérer les attentes]
+- Pas de backend réel
+- Pas d'authentification réelle
+- [Autres limitations spécifiques]
+
+---
 
 ## RÈGLES
 
-1. **Garde l'essence de l'idée** - Ne change pas le concept, améliore-le
-2. **Ajoute des détails visuels** - Couleurs, layout, animations
-3. **Spécifie les fonctionnalités** - CRUD, filtres, recherche, persistance
-4. **Inclus le design premium** - Dark mode, gradients, glassmorphism
-5. **Reste réaliste** - L'app tourne côté client uniquement (pas de backend réel)
-6. **Sois concis** - 3-5 paragraphes maximum
-
-## FORMAT DE SORTIE
-
-Réponds UNIQUEMENT avec le prompt amélioré, sans introduction ni explication.
-Le prompt doit être en français et commencer directement par la description de l'app.
+1. **Sois précis mais concis** - Pas de blabla, que du concret
+2. **MVP first** - Max 5 fonctionnalités essentielles
+3. **Design premium par défaut** - Dark mode, gradients, glassmorphism
+4. **Réaliste** - L'app tourne côté client uniquement
+5. **Actionnable** - Un dev doit pouvoir coder directement à partir de ce brief
 
 ## EXEMPLE
 
-**Input utilisateur:** "une app de notes"
+**Input:** "une app de budget"
 
 **Output:**
-Crée une application de prise de notes style Notion avec un design dark mode premium.
+---
+## 📋 APP BRIEF
 
-**Design:**
-- Background: gradient sombre (slate-900 → purple-900)
-- Cards: glassmorphism avec backdrop-blur
-- Boutons: gradients violet/rose avec hover effects
+### 🎯 Vision
+Application de gestion de budget personnel permettant de suivre ses dépenses et revenus, visualiser sa situation financière, et atteindre ses objectifs d'épargne.
 
-**Fonctionnalités:**
-- Créer, éditer, supprimer des notes
-- Recherche en temps réel
-- Catégories/tags avec filtres
-- Vue grille et liste
-- Persistance localStorage
-- Mode markdown basique (gras, italique, listes)
+### 👥 Utilisateurs Cibles
+Particuliers souhaitant mieux gérer leur argent, suivre leurs dépenses par catégorie, et visualiser leur progression financière.
 
-**Interactions:**
-- Double-clic pour éditer
-- Drag & drop pour réorganiser
-- Animations fluides sur toutes les actions
-- Modal de confirmation pour suppression`
+### ✨ Fonctionnalités MVP
+1. Ajouter des transactions (dépenses/revenus) avec catégorie et date
+2. Dashboard avec solde actuel et graphiques de répartition
+3. Filtres par période (semaine/mois/année) et catégorie
+4. Objectifs d'épargne avec barre de progression
+5. Export des données en JSON
 
-// Fast models for each provider (cheap and quick for prompt enhancement)
+### 🎨 Design & UX
+- **Style**: Dark mode premium avec accents verts (argent positif) et rouges (dépenses)
+- **Couleurs**: Gradient slate-900 → emerald-900, accents emerald-500/red-500
+- **Layout**: Sidebar gauche avec navigation, zone principale avec dashboard/liste
+- **Animations**: Transitions fluides, graphiques animés, hover effects sur cards
+
+### 📱 Écrans Principaux
+- **Dashboard**: Solde, graphique camembert par catégorie, dernières transactions
+- **Transactions**: Liste filtrable avec recherche, bouton d'ajout
+- **Objectifs**: Cards d'objectifs avec progression
+- **Paramètres**: Catégories personnalisées, export
+
+### 💾 Données & État
+- **Persistance**: localStorage pour transactions, catégories, objectifs
+- **État principal**: Liste de transactions, catégories, objectifs d'épargne
+
+### ⚠️ Hors Scope (Limitations)
+- Pas de synchronisation bancaire
+- Pas de multi-devises
+- Pas de partage entre utilisateurs
+---
+
+Maintenant, génère l'App Brief pour l'idée de l'utilisateur. Réponds UNIQUEMENT avec le brief formaté, sans introduction.`
+
+// Fast models for each provider
 const FAST_MODELS = {
   anthropic: 'claude-3-5-haiku-20241022',
   openai: 'gpt-4o-mini',
@@ -107,15 +162,13 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Determine provider from user's preferred model (same logic as chat API)
+    // Determine provider from user's preferred model
     const preferredModelKey = user.preferredModel?.modelId || 'gpt-4o'
     
-    // Check available platform keys
     const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
     const hasOpenAIKey = !!process.env.OPENAI_API_KEY
     const hasKimiKey = !!process.env.KIMI_API_KEY
     
-    // Detect provider from preferred model
     let provider: 'anthropic' | 'openai' | 'kimi'
     if (preferredModelKey.startsWith('kimi')) {
       provider = 'kimi'
@@ -125,7 +178,7 @@ export async function POST(req: NextRequest) {
       provider = 'openai'
     }
     
-    // Smart fallback: if preferred provider has no key (and no BYOK), switch to another
+    // Smart fallback
     if (provider === 'anthropic' && !hasAnthropicKey && !(user.byokEnabled && user.anthropicKey)) {
       if (hasOpenAIKey || (user.byokEnabled && user.openaiKey)) provider = 'openai'
       else if (hasKimiKey || (user.byokEnabled && user.kimiKey)) provider = 'kimi'
@@ -137,7 +190,7 @@ export async function POST(req: NextRequest) {
       else if (hasAnthropicKey || (user.byokEnabled && user.anthropicKey)) provider = 'anthropic'
     }
 
-    // Get the appropriate API key (BYOK takes priority, same as chat API)
+    // Get API key
     let apiKey: string | null = null
     let useBYOK = false
 
@@ -174,43 +227,41 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    console.log('[Enhance] Using provider:', provider, 'BYOK:', useBYOK)
+    console.log('[Enhance/BMAD] Using provider:', provider, 'BYOK:', useBYOK)
 
-    let enhancedPrompt: string
+    let appBrief: string
 
     try {
       if (provider === 'anthropic') {
         const anthropic = new Anthropic({ apiKey })
         const response = await anthropic.messages.create({
           model: FAST_MODELS.anthropic,
-          max_tokens: 1024,
-          system: ENHANCE_SYSTEM_PROMPT,
+          max_tokens: 1500,
+          system: BMAD_BRIEF_PROMPT,
           messages: [
-            { role: 'user', content: `Améliore cette idée d'application:\n\n${userPrompt}` }
+            { role: 'user', content: `Crée un App Brief pour cette idée:\n\n${userPrompt}` }
           ],
         })
-        enhancedPrompt = response.content[0].type === 'text' ? response.content[0].text : ''
+        appBrief = response.content[0].type === 'text' ? response.content[0].text : ''
       } else {
-        // OpenAI and Kimi use the same API
         const openai = new OpenAI({ 
           apiKey, 
           baseURL: provider === 'kimi' ? KIMI_BASE_URL : undefined 
         })
         const response = await openai.chat.completions.create({
           model: provider === 'kimi' ? FAST_MODELS.kimi : FAST_MODELS.openai,
-          max_tokens: 1024,
+          max_tokens: 1500,
           messages: [
-            { role: 'system', content: ENHANCE_SYSTEM_PROMPT },
-            { role: 'user', content: `Améliore cette idée d'application:\n\n${userPrompt}` }
+            { role: 'system', content: BMAD_BRIEF_PROMPT },
+            { role: 'user', content: `Crée un App Brief pour cette idée:\n\n${userPrompt}` }
           ],
         })
-        enhancedPrompt = response.choices[0]?.message?.content || ''
+        appBrief = response.choices[0]?.message?.content || ''
       }
     } catch (apiError) {
-      console.error('[Enhance] API error:', apiError)
+      console.error('[Enhance/BMAD] API error:', apiError)
       const errorMsg = apiError instanceof Error ? apiError.message : String(apiError)
       
-      // If it's an auth error and using platform key, suggest BYOK
       if (errorMsg.includes('invalid') || errorMsg.includes('401') || errorMsg.includes('authentication')) {
         return new Response(JSON.stringify({ 
           error: `Erreur d'authentification ${provider}. Ajoutez votre propre clé API dans Paramètres.`,
@@ -224,16 +275,26 @@ export async function POST(req: NextRequest) {
       throw apiError
     }
 
-    if (!enhancedPrompt) {
-      return new Response(JSON.stringify({ error: 'Échec de l\'amélioration du prompt' }), {
+    if (!appBrief) {
+      return new Response(JSON.stringify({ error: 'Échec de la création du brief' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
+    // Generate a build prompt from the brief
+    const buildPrompt = `${appBrief}
+
+---
+
+🚀 **INSTRUCTION**: Crée cette application en suivant le brief ci-dessus. 
+Commence par les fonctionnalités MVP, avec le design premium décrit.
+Utilise localStorage pour la persistance.`
+
     return new Response(JSON.stringify({ 
       originalPrompt: userPrompt,
-      enhancedPrompt: enhancedPrompt.trim(),
+      appBrief: appBrief.trim(),
+      enhancedPrompt: buildPrompt.trim(), // For backward compatibility
       provider,
       usedBYOK: useBYOK,
     }), {
@@ -241,7 +302,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (error) {
-    console.error('[Enhance Prompt] Error:', error)
+    console.error('[Enhance/BMAD] Error:', error)
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Erreur interne' 
     }), {

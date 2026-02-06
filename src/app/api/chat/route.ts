@@ -21,6 +21,7 @@ import {
   FALLBACK_CODE_OUTPUT_PROMPT,
   buildMinimalContext,
   buildLegacyContext,
+  buildAppBriefContext,
 } from '@/lib/ai/prompts'
 import { MODEL_PRICING } from '@/lib/credits/pricing'
 import {
@@ -292,12 +293,37 @@ export async function POST(req: NextRequest) {
         files: fileList,
         totalSizeBytes: totalSize,
       })
+      
+      // BMAD Method: Inject App Brief if available
+      // This gives the AI context about the original vision and MVP scope
+      if (app?.metadata && typeof app.metadata === 'object') {
+        const briefContext = buildAppBriefContext(app.metadata as {
+          initialPrompt?: string;
+          appBrief?: string;
+          originalIdea?: string;
+        })
+        if (briefContext) {
+          systemPrompt += briefContext
+        }
+      }
     } else {
       // FALLBACK: No tools available, inject full code (legacy behavior)
       systemPrompt += FALLBACK_CODE_OUTPUT_PROMPT
       
       if (Object.keys(codeFiles).length > 0) {
         systemPrompt += buildLegacyContext(codeFiles)
+      }
+      
+      // BMAD Method: Also inject App Brief in legacy mode
+      if (app?.metadata && typeof app.metadata === 'object') {
+        const briefContext = buildAppBriefContext(app.metadata as {
+          initialPrompt?: string;
+          appBrief?: string;
+          originalIdea?: string;
+        })
+        if (briefContext) {
+          systemPrompt += briefContext
+        }
       }
     }
 
