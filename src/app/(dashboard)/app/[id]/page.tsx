@@ -10,6 +10,7 @@ import {
   Rocket, 
   ExternalLink,
   PiggyBank,
+  AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Preview, AppTypeIcon, getAppTypeLabel, DEFAULT_FILES, normalizeFilesForSandpack, type AppType, type PreviewError } from '@/components/preview'
@@ -146,6 +147,9 @@ export default function AppEditorPage() {
 
   // Preview error tracking for AI assistance
   const [lastPreviewError, setLastPreviewError] = useState<PreviewError | null>(null)
+  
+  // App load error state
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const hasInitialized = useRef(false)
 
@@ -247,6 +251,7 @@ export default function AppEditorPage() {
         }
       } catch (error) {
         console.error('Failed to load app:', error)
+        setLoadError(error instanceof Error ? error.message : 'Erreur lors du chargement')
       } finally {
         // BUG FIX #5: Mark app as loaded
         setIsAppLoaded(true)
@@ -726,6 +731,36 @@ export default function AppEditorPage() {
     setFiles(newFiles)
     setPreviewVersion(v => v + 1)
   }, [])
+
+  // Loading state - prevent blank page
+  if (!isAppLoaded) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Chargement de l&apos;app...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Error state - show error message instead of blank page
+  if (loadError) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center max-w-md">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertCircle className="w-6 h-6 text-destructive" />
+          </div>
+          <h2 className="text-lg font-semibold">Erreur de chargement</h2>
+          <p className="text-muted-foreground">{loadError}</p>
+          <Button onClick={() => window.location.reload()}>
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   // BMAD Build Mode - Show build interface
   if (showBuildMode && bmadDocs) {
