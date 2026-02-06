@@ -71,6 +71,41 @@ function detectProjectStructure(files: Record<string, string>): 'vite' | 'simple
 }
 
 /**
+ * Files to exclude from Sandpack (config files, docs, etc.)
+ */
+const EXCLUDED_FILES = [
+  'vite.config.js', 'vite.config.ts',
+  'next.config.js', 'next.config.mjs',
+  'webpack.config.js', 'tsconfig.json',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  '.gitignore', '.env', '.env.local',
+  'README.md', 'LICENSE',
+]
+
+const EXCLUDED_EXTENSIONS = ['.md', '.mdx', '.txt', '.json']
+const EXCLUDED_FOLDERS = ['/docs/', '/.git/', '/node_modules/']
+
+function shouldExcludeFile(path: string): boolean {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const fileName = normalizedPath.split('/').pop() || ''
+  
+  // Exclude specific files
+  if (EXCLUDED_FILES.includes(fileName)) return true
+  
+  // Exclude docs and config folders
+  if (EXCLUDED_FOLDERS.some(folder => normalizedPath.includes(folder))) return true
+  
+  // Exclude .md files (except in special cases)
+  const ext = normalizedPath.substring(normalizedPath.lastIndexOf('.'))
+  if (ext === '.md' || ext === '.mdx') return true
+  
+  // Allow package.json but nothing else with .json in excluded
+  if (ext === '.json' && fileName !== 'package.json') return true
+  
+  return false
+}
+
+/**
  * Prepare files for Vite template (with /src/ structure)
  */
 function prepareViteFiles(files: Record<string, string>): Record<string, string> {
@@ -78,6 +113,12 @@ function prepareViteFiles(files: Record<string, string>): Record<string, string>
   
   for (const [path, content] of Object.entries(files)) {
     if (content === null || content === undefined) continue
+    
+    // Skip excluded files (vite.config, .md docs, etc.)
+    if (shouldExcludeFile(path)) {
+      console.log('[WebPreview] Excluding file:', path)
+      continue
+    }
     
     let normalizedPath = path.startsWith('/') ? path : `/${path}`
     
@@ -180,6 +221,12 @@ function prepareSimpleFiles(files: Record<string, string>): Record<string, strin
   
   for (const [path, content] of Object.entries(files)) {
     if (content === null || content === undefined) continue
+    
+    // Skip excluded files (vite.config, .md docs, etc.)
+    if (shouldExcludeFile(path)) {
+      console.log('[WebPreview] Excluding file:', path)
+      continue
+    }
     
     const normalizedPath = path.startsWith('/') ? path : `/${path}`
     prepared[normalizedPath] = sanitizeFileContent(content)
