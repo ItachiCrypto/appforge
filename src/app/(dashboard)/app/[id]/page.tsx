@@ -165,12 +165,9 @@ export default function AppEditorPage() {
           // Charger les métadonnées (économies + BMAD)
           if (app.metadata) {
             setAppMetadata(app.metadata)
-            // Extract initialPrompt from metadata (new method, safer for Unicode)
-            if (app.metadata.initialPrompt && !urlPrompt) {
-              setInitialPrompt(app.metadata.initialPrompt)
-            }
             
             // BMAD Build Mode: Check if we have BMAD docs and need to build
+            // IMPORTANT: Check this FIRST before setting initialPrompt
             if (app.metadata.bmad && app.metadata.bmad.epics) {
               setBmadDocs(app.metadata.bmad)
               
@@ -182,6 +179,13 @@ export default function AppEditorPage() {
               // Show Build Mode if we have BMAD docs but no real files yet
               if (!hasRealFiles) {
                 setShowBuildMode(true)
+                // DON'T set initialPrompt - Build Mode will handle story-by-story
+                hasInitialized.current = true // Prevent initialPrompt from triggering
+              }
+            } else {
+              // Only set initialPrompt if NOT using BMAD Build Mode
+              if (app.metadata.initialPrompt && !urlPrompt) {
+                setInitialPrompt(app.metadata.initialPrompt)
               }
             }
           }

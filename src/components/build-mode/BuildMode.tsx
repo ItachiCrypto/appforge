@@ -67,20 +67,42 @@ export function BuildMode({
   
   const abortControllerRef = useRef<AbortController | null>(null)
   const isRunningRef = useRef(false)
+  const storiesRef = useRef<Story[]>([])
+  const currentIndexRef = useRef(0)
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    storiesRef.current = stories
+  }, [stories])
+
+  useEffect(() => {
+    currentIndexRef.current = currentStoryIndex
+  }, [currentStoryIndex])
 
   // Parse epics on mount
   useEffect(() => {
     if (bmadDocs.epics) {
+      console.log('[BuildMode] Parsing epics markdown...')
       const parsedEpics = parseEpicsMarkdown(bmadDocs.epics)
+      console.log('[BuildMode] Parsed epics:', parsedEpics.length)
       setEpics(parsedEpics)
       const allStories = getAllStories(parsedEpics)
+      console.log('[BuildMode] Total stories:', allStories.length)
       setStories(allStories)
+      storiesRef.current = allStories
       
       addLog('info', `📋 ${allStories.length} stories détectées dans ${parsedEpics.length} epics`)
       
-      // Auto-start building
+      // Auto-start building after a short delay
       if (allStories.length > 0) {
-        setTimeout(() => startBuilding(), 500)
+        console.log('[BuildMode] Starting build in 1s...')
+        setTimeout(() => {
+          console.log('[BuildMode] Starting build now')
+          startBuilding()
+        }, 1000)
+      } else {
+        console.warn('[BuildMode] No stories found to build!')
+        addLog('error', '❌ Aucune story trouvée dans le document epics')
       }
     }
   }, [bmadDocs.epics])
@@ -95,9 +117,14 @@ export function BuildMode({
   }, [])
 
   const updateStoryStatus = useCallback((index: number, newStatus: Story['status']) => {
-    setStories(prev => prev.map((s, i) => 
-      i === index ? { ...s, status: newStatus } : s
-    ))
+    setStories(prev => {
+      const updated = prev.map((s, i) => 
+        i === index ? { ...s, status: newStatus } : s
+      )
+      // Also update ref to avoid stale closure
+      storiesRef.current = updated
+      return updated
+    })
   }, [])
 
   const startBuilding = useCallback(() => {
@@ -126,13 +153,23 @@ export function BuildMode({
   }, [status, addLog])
 
   const buildNextStory = useCallback(async () => {
+    console.log('[BuildMode] buildNextStory called, isRunning:', isRunningRef.current)
     if (!isRunningRef.current) return
     
+    // Use refs to get current values (avoid stale closure)
+    const currentStories = storiesRef.current
+    const currentIdx = currentIndexRef.current
+    
+    console.log('[BuildMode] Looking for next story, currentIdx:', currentIdx, 'total:', currentStories.length)
+    
     // Find next pending story
-    const nextIndex = stories.findIndex((s, i) => i >= currentStoryIndex && s.status === 'pending')
+    const nextIndex = currentStories.findIndex((s, i) => i >= currentIdx && s.status === 'pending')
+    
+    console.log('[BuildMode] Next pending story index:', nextIndex)
     
     if (nextIndex === -1) {
       // All stories done
+      console.log('[BuildMode] All stories done!')
       setStatus('done')
       isRunningRef.current = false
       addLog('success', '🎉 Toutes les stories ont été implémentées!')
@@ -141,7 +178,10 @@ export function BuildMode({
     }
 
     setCurrentStoryIndex(nextIndex)
-    const story = stories[nextIndex]
+    currentIndexRef.current = nextIndex
+    const story = currentStories[nextIndex]
+    
+    console.log('[BuildMode] Building story:', story.storyId, story.title)
     
     // Update status
     updateStoryStatus(nextIndex, 'building')
@@ -155,6 +195,8 @@ export function BuildMode({
       const isFirstStory = nextIndex === 0
       const prompt = buildStoryPrompt(story, isFirstStory)
       
+      console.log('[BuildMode] Sending prompt to API:', prompt.substring(0, 200) + '...')
+      
       // Call chat API
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -167,8 +209,12 @@ export function BuildMode({
         signal: abortControllerRef.current.signal,
       })
 
+      console.log('[BuildMode] API response status:', response.status)
+
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        const errorText = await response.text()
+        console.error('[BuildMode] API error response:', errorText)
+        throw new Error(`API error: ${response.status} - ${errorText}`)
       }
 
       // Process streaming response
@@ -255,15 +301,10 @@ export function BuildMode({
         }, 2000)
       }
     }
-  }, [stories, currentStoryIndex, appId, addLog, updateStoryStatus, onComplete, onFilesUpdate])
+  }, [appId, addLog, updateStoryStatus, onComplete, onFilesUpdate])
 
-  // Re-trigger build when stories change and we're in building state
-  useEffect(() => {
-    if (status === 'building' && stories.length > 0 && !isRunningRef.current) {
-      isRunningRef.current = true
-      buildNextStory()
-    }
-  }, [stories, status, buildNextStory])
+  // Note: Build is triggered from parseEpics useEffect, not from state changes
+  // This avoids race conditions with stale closures
 
   const stats = countStoriesByStatus(stories)
   const progress = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0
