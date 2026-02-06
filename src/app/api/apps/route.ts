@@ -85,7 +85,26 @@ export async function POST(req: NextRequest) {
     const appType = (type && validTypes.includes(type as AppTypeId) ? type : 'WEB') as AppTypeId
 
     // Get default files for this type
-    const defaultFiles = DEFAULT_FILES_BY_TYPE[appType]
+    let appFiles = { ...DEFAULT_FILES_BY_TYPE[appType] }
+
+    // BMAD: If metadata contains BMAD docs, also save them as files
+    // This makes them visible in the file explorer and editable
+    const bmadMetadata = metadata as { bmad?: { brief?: string; prd?: string; architecture?: string; epics?: string } } | undefined
+    if (bmadMetadata?.bmad) {
+      const { brief, prd, architecture, epics } = bmadMetadata.bmad
+      if (brief) {
+        appFiles['/docs/01-product-brief.md'] = brief
+      }
+      if (prd) {
+        appFiles['/docs/02-prd.md'] = prd
+      }
+      if (architecture) {
+        appFiles['/docs/03-architecture.md'] = architecture
+      }
+      if (epics) {
+        appFiles['/docs/04-epics-stories.md'] = epics
+      }
+    }
 
     // Create conversation first
     const conversation = await prisma.conversation.create({
@@ -108,7 +127,7 @@ export async function POST(req: NextRequest) {
         name: name || generateAppName(),
         description,
         type: appType as AppType,
-        files: defaultFiles,
+        files: appFiles,
         metadata: Object.keys(appMetadata).length > 0 ? appMetadata : undefined,
         userId: user.id,
         conversationId: conversation.id,

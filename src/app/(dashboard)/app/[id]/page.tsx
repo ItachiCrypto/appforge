@@ -22,6 +22,15 @@ import {
   type Message 
 } from '@/components/editor'
 import { formatCurrency, SAAS_APPS } from '@/lib/saas-data'
+import { BuildMode } from '@/components/build-mode'
+
+// Type for BMAD metadata
+interface BmadDocs {
+  brief?: string
+  prd?: string
+  architecture?: string
+  epics?: string
+}
 
 // Type for tool call tracking (BUG FIX #1 & #4)
 export interface ToolCallState {
@@ -68,6 +77,15 @@ function getSaasIcon(saasName: string): string {
     s.name.toLowerCase() === saasName.toLowerCase()
   )
   return saas?.icon || '📦'
+}
+
+// Check if files are just the default template (no real code yet)
+function isDefaultTemplate(files: Record<string, string>): boolean {
+  const appJs = files['/App.js'] || files['App.js'] || ''
+  // Default template has "Hello World" or is very short
+  return appJs.includes('Hello World') || 
+         appJs.includes('Nouvelle App') ||
+         appJs.length < 500
 }
 
 export default function AppEditorPage() {
@@ -119,7 +137,12 @@ export default function AppEditorPage() {
     replacedSaasName?: string
     monthlySavings?: number
     initialPrompt?: string
+    bmad?: BmadDocs
   } | null>(null)
+  
+  // BMAD Build Mode state
+  const [showBuildMode, setShowBuildMode] = useState(false)
+  const [bmadDocs, setBmadDocs] = useState<BmadDocs | null>(null)
 
   // Preview error tracking for AI assistance
   const [lastPreviewError, setLastPreviewError] = useState<PreviewError | null>(null)
@@ -139,12 +162,27 @@ export default function AppEditorPage() {
           const type = (app.type as AppType) || 'WEB'
           setAppType(type)
 
-          // Charger les métadonnées (économies)
+          // Charger les métadonnées (économies + BMAD)
           if (app.metadata) {
             setAppMetadata(app.metadata)
             // Extract initialPrompt from metadata (new method, safer for Unicode)
             if (app.metadata.initialPrompt && !urlPrompt) {
               setInitialPrompt(app.metadata.initialPrompt)
+            }
+            
+            // BMAD Build Mode: Check if we have BMAD docs and need to build
+            if (app.metadata.bmad && app.metadata.bmad.epics) {
+              setBmadDocs(app.metadata.bmad)
+              
+              // Check if app has real files (not just default template)
+              const hasRealFiles = app.files && 
+                Object.keys(app.files).length > 0 &&
+                !isDefaultTemplate(app.files)
+              
+              // Show Build Mode if we have BMAD docs but no real files yet
+              if (!hasRealFiles) {
+                setShowBuildMode(true)
+              }
             }
           }
 
@@ -664,6 +702,40 @@ export default function AppEditorPage() {
       compact={mode === 'expert'}
     />
   )
+
+  // BMAD Build Mode - Handle completion
+  const handleBuildModeComplete = useCallback(() => {
+    setShowBuildMode(false)
+    // Refresh files from DB
+    fetch(`/api/apps/${appId}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(app => {
+        if (app?.files) {
+          setFiles(normalizeFilesForSandpack(app.files))
+          setPreviewVersion(v => v + 1)
+        }
+      })
+  }, [appId])
+
+  // BMAD Build Mode - Handle files update during build
+  const handleBuildModeFilesUpdate = useCallback((newFiles: Record<string, string>) => {
+    setFiles(newFiles)
+    setPreviewVersion(v => v + 1)
+  }, [])
+
+  // BMAD Build Mode - Show build interface
+  if (showBuildMode && bmadDocs) {
+    return (
+      <BuildMode
+        appId={appId}
+        appName={appName}
+        appType={appType}
+        bmadDocs={bmadDocs}
+        onComplete={handleBuildModeComplete}
+        onFilesUpdate={handleBuildModeFilesUpdate}
+      />
+    )
+  }
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
