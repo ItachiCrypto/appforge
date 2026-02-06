@@ -637,19 +637,19 @@ export default function NewAppPage() {
       // Store the document and advance to next phase
       switch (phase) {
         case 'brief':
-          setBmadBrief(data.document)
+          setBmadBrief(data.document || '')
           setBmadPhase('brief')
           break
         case 'prd':
-          setBmadPrd(data.document)
+          setBmadPrd(data.document || '')
           setBmadPhase('prd')
           break
         case 'architecture':
-          setBmadArchitecture(data.document)
+          setBmadArchitecture(data.document || '')
           setBmadPhase('architecture')
           break
         case 'epics':
-          setBmadEpics(data.document)
+          setBmadEpics(data.document || '')
           setBmadPhase('epics')
           break
       }
