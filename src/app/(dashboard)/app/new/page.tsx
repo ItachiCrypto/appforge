@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -488,6 +488,11 @@ export default function NewAppPage() {
   const router = useRouter()
   const [flowType, setFlowType] = useState<FlowType>(null)
   
+  // Plan limit check
+  const [checkingLimit, setCheckingLimit] = useState(true)
+  const [limitReached, setLimitReached] = useState(false)
+  const [limitInfo, setLimitInfo] = useState<{ current: number; max: number; plan: string } | null>(null)
+  
   // SaaS flow state
   const [saasStep, setSaasStep] = useState(1)
   const [selectedSaas, setSelectedSaas] = useState<string[]>([])
@@ -508,6 +513,53 @@ export default function NewAppPage() {
   const [selectedColor, setSelectedColor] = useState('violet')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Check plan limit on mount
+  useEffect(() => {
+    async function checkPlanLimit() {
+      try {
+        const [userRes, appsRes] = await Promise.all([
+          fetch('/api/user'),
+          fetch('/api/apps'),
+        ])
+        
+        if (userRes.ok && appsRes.ok) {
+          const user = await userRes.json()
+          const apps = await appsRes.json()
+          
+          const plan = user.plan || 'FREE'
+          const appCount = Array.isArray(apps) ? apps.length : 0
+          
+          // Plan limits
+          const limits: Record<string, number> = {
+            FREE: 3,
+            STARTER: 10,
+            PRO: -1, // unlimited
+            TEAM: -1,
+            ENTERPRISE: -1,
+          }
+          
+          const maxApps = limits[plan] ?? 3
+          
+          setLimitInfo({
+            current: appCount,
+            max: maxApps,
+            plan,
+          })
+          
+          if (maxApps !== -1 && appCount >= maxApps) {
+            setLimitReached(true)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check plan limit:', err)
+      } finally {
+        setCheckingLimit(false)
+      }
+    }
+    
+    checkPlanLimit()
+  }, [])
 
   // Calculs SaaS
   const totalMonthlySavings = useMemo(() => {
@@ -734,6 +786,63 @@ Utilise localStorage pour la persistance. Design premium obligatoire.
     setAppName('')
     setError(null)
     setBmadError(null)
+  }
+
+  // Show loading while checking plan limit
+  if (checkingLimit) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+          <p className="text-muted-foreground">Vérification de ton plan...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show upgrade prompt if limit reached
+  if (limitReached && limitInfo) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+        <div className="max-w-md w-full">
+          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+              <Crown className="w-8 h-8 text-amber-400" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Limite atteinte
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Tu as atteint la limite de <span className="text-white font-semibold">{limitInfo.max} apps</span> de ton plan {limitInfo.plan}.
+              <br />
+              <span className="text-sm">({limitInfo.current}/{limitInfo.max} apps créées)</span>
+            </p>
+            
+            <div className="space-y-3">
+              <Button
+                onClick={() => router.push('/settings#billing')}
+                className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Passer au plan supérieur
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push('/dashboard')}
+                className="w-full"
+              >
+                Retour au dashboard
+              </Button>
+            </div>
+            
+            <p className="text-xs text-muted-foreground mt-6">
+              💡 Le plan Starter permet 10 apps, Pro illimité
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
