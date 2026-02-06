@@ -522,11 +522,17 @@ Chaque story est "Done" quand:
 Génère UNIQUEMENT les epics & stories. Utilise le PRD et l'Architecture fournis comme contexte.`,
 }
 
-// Fast models for each provider
-const MODELS = {
-  anthropic: 'claude-3-5-sonnet-20241022', // Better for complex docs
-  openai: 'gpt-4o',
-  kimi: 'moonshot-v1-32k', // Larger context for docs
+// Map user model IDs to actual API model names
+const MODEL_API_NAMES: Record<string, string> = {
+  'claude-opus-4': 'claude-opus-4-20250514',
+  'claude-sonnet-4': 'claude-sonnet-4-20250514',
+  'claude-haiku-3.5': 'claude-3-5-haiku-20241022',
+  'gpt-4o': 'gpt-4o',
+  'gpt-4o-mini': 'gpt-4o-mini',
+  'gpt-4-turbo': 'gpt-4-turbo',
+  'o1': 'o1',
+  'o1-mini': 'o1-mini',
+  'kimi-k2.5': 'kimi-k2.5',
 }
 
 const KIMI_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -670,7 +676,10 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    console.log(`[BMAD/${phase}] Using provider:`, provider, 'BYOK:', useBYOK)
+    // Get the actual API model name from user's preferred model
+    const apiModelName = MODEL_API_NAMES[preferredModelKey] || preferredModelKey
+    
+    console.log(`[BMAD/${phase}] Using provider:`, provider, 'model:', apiModelName, 'BYOK:', useBYOK)
 
     // Build the user message based on phase
     let userMessage: string
@@ -697,7 +706,7 @@ export async function POST(req: NextRequest) {
       if (provider === 'anthropic') {
         const anthropic = new Anthropic({ apiKey })
         const response = await anthropic.messages.create({
-          model: MODELS.anthropic,
+          model: apiModelName,
           max_tokens: 4000,
           system: PROMPTS[phase],
           messages: [
@@ -706,12 +715,13 @@ export async function POST(req: NextRequest) {
         })
         result = response.content[0].type === 'text' ? response.content[0].text : ''
       } else {
+        // OpenAI and Kimi both use OpenAI-compatible API
         const openai = new OpenAI({ 
           apiKey, 
           baseURL: provider === 'kimi' ? KIMI_BASE_URL : undefined 
         })
         const response = await openai.chat.completions.create({
-          model: provider === 'kimi' ? MODELS.kimi : MODELS.openai,
+          model: apiModelName,
           max_tokens: 4000,
           messages: [
             { role: 'system', content: PROMPTS[phase] },
