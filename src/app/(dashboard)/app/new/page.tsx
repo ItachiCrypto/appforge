@@ -15,7 +15,11 @@ import {
   Rocket,
   Crown,
   Target,
-  Flame
+  Flame,
+  Lightbulb,
+  Wand2,
+  PenLine,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -38,13 +42,24 @@ const COLORS = [
   { id: 'amber', name: 'Ambre', gradient: 'from-amber-500 to-yellow-500', ring: 'ring-amber-500' },
 ]
 
+// Type de flow
+type FlowType = 'saas' | 'custom' | null
+
 // Stepper amélioré
-function Stepper({ currentStep, totalSavings }: { currentStep: number; totalSavings: number }) {
-  const steps = [
+function Stepper({ currentStep, totalSavings, flowType }: { currentStep: number; totalSavings: number; flowType: FlowType }) {
+  const saasSteps = [
     { num: 1, label: 'Sélection', icon: Target },
     { num: 2, label: 'Clone', icon: Zap },
     { num: 3, label: 'Création', icon: Rocket },
   ]
+  
+  const customSteps = [
+    { num: 1, label: 'Ton idée', icon: Lightbulb },
+    { num: 2, label: 'Magie IA', icon: Wand2 },
+    { num: 3, label: 'Création', icon: Rocket },
+  ]
+  
+  const steps = flowType === 'custom' ? customSteps : saasSteps
 
   return (
     <div className="relative">
@@ -92,8 +107,8 @@ function Stepper({ currentStep, totalSavings }: { currentStep: number; totalSavi
               })}
             </div>
 
-            {/* Économies badge */}
-            {totalSavings > 0 && (
+            {/* Économies badge (only for SaaS flow) */}
+            {flowType === 'saas' && totalSavings > 0 && (
               <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 rounded-full animate-in slide-in-from-right duration-500">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
@@ -134,7 +149,6 @@ function PageHeader({
         <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
           {highlight}
         </span>
-        {' ?'}
       </h1>
 
       <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
@@ -320,9 +334,20 @@ function BottomBar({
 
 export default function NewAppPage() {
   const router = useRouter()
+  const [flowType, setFlowType] = useState<FlowType>(null)
   const [step, setStep] = useState(1)
+  
+  // SaaS flow state
   const [selectedSaas, setSelectedSaas] = useState<string[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  
+  // Custom flow state
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [enhancedPrompt, setEnhancedPrompt] = useState('')
+  const [isEnhancing, setIsEnhancing] = useState(false)
+  const [enhanceError, setEnhanceError] = useState<string | null>(null)
+  
+  // Shared state
   const [appName, setAppName] = useState('')
   const [selectedColor, setSelectedColor] = useState('violet')
   const [isLoading, setIsLoading] = useState(false)
@@ -358,9 +383,45 @@ export default function NewAppPage() {
     )
   }
 
+  // Enhance prompt with AI
+  const handleEnhancePrompt = async () => {
+    if (!customPrompt.trim() || customPrompt.length < 3) return
+    
+    setIsEnhancing(true)
+    setEnhanceError(null)
+    
+    try {
+      const res = await fetch('/api/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: customPrompt }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'amélioration')
+      }
+      
+      setEnhancedPrompt(data.enhancedPrompt)
+      setStep(2) // Move to enhanced prompt view
+    } catch (err) {
+      setEnhanceError(err instanceof Error ? err.message : 'Erreur inconnue')
+    } finally {
+      setIsEnhancing(false)
+    }
+  }
+
   const handleCreate = async () => {
-    if (!selectedSaasForTemplate || !templateData) {
+    const isCustomFlow = flowType === 'custom'
+    
+    if (!isCustomFlow && (!selectedSaasForTemplate || !templateData)) {
       setError("Erreur: template non trouvé. Retourne à l'étape 2.")
+      return
+    }
+    
+    if (isCustomFlow && !enhancedPrompt) {
+      setError("Erreur: prompt non amélioré. Retourne à l'étape 1.")
       return
     }
 
@@ -368,30 +429,41 @@ export default function NewAppPage() {
     setError(null)
 
     try {
+      const appData = isCustomFlow ? {
+        name: appName || 'Mon App',
+        description: customPrompt.substring(0, 200),
+        type: 'WEB',
+        metadata: {
+          primaryColor: selectedColor,
+          customIdea: true,
+          originalPrompt: customPrompt,
+        },
+        initialPrompt: enhancedPrompt,
+      } : {
+        name: appName || `Mon ${templateData!.name}`,
+        description: templateData!.description,
+        type: 'WEB',
+        metadata: {
+          replacedSaas: selectedTemplate,
+          replacedSaasName: selectedSaasForTemplate!.name,
+          monthlySavings: selectedSaasForTemplate!.monthlyPrice,
+          primaryColor: selectedColor,
+          allReplacedSaas: selectedSaas,
+        },
+        initialPrompt: templateData!.prompt,
+      }
+
       console.log('[Wizard] Creating app:', {
-        name: appName || `Mon ${templateData.name}`,
-        template: selectedTemplate,
-        hasPrompt: !!templateData.prompt,
-        promptLength: templateData.prompt?.length,
+        name: appData.name,
+        isCustom: isCustomFlow,
+        hasPrompt: !!appData.initialPrompt,
+        promptLength: appData.initialPrompt?.length,
       })
 
       const res = await fetch('/api/apps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: appName || `Mon ${templateData.name}`,
-          description: templateData.description,
-          type: 'WEB',
-          metadata: {
-            replacedSaas: selectedTemplate,
-            replacedSaasName: selectedSaasForTemplate.name,
-            monthlySavings: selectedSaasForTemplate.monthlyPrice,
-            primaryColor: selectedColor,
-            allReplacedSaas: selectedSaas,
-          },
-          // Pass prompt via body instead of URL to avoid Unicode encoding issues
-          initialPrompt: templateData.prompt,
-        }),
+        body: JSON.stringify(appData),
       })
 
       console.log('[Wizard] API response status:', res.status)
@@ -420,7 +492,6 @@ export default function NewAppPage() {
       }
 
       console.log('[Wizard] App created:', app.id)
-      // No longer passing prompt in URL - it's stored in app.metadata.initialPrompt
       router.push(`/app/${app.id}`)
     } catch (err) {
       console.error('[Wizard] Create app error:', err)
@@ -428,6 +499,19 @@ export default function NewAppPage() {
       setError(errorMessage)
       setIsLoading(false)
     }
+  }
+
+  // Reset to flow selection
+  const resetFlow = () => {
+    setFlowType(null)
+    setStep(1)
+    setSelectedSaas([])
+    setSelectedTemplate(null)
+    setCustomPrompt('')
+    setEnhancedPrompt('')
+    setAppName('')
+    setError(null)
+    setEnhanceError(null)
   }
 
   return (
@@ -439,20 +523,353 @@ export default function NewAppPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-violet-500/10 to-pink-500/10 rounded-full blur-[128px]" />
       </div>
 
-      {/* Stepper */}
-      <Stepper currentStep={step} totalSavings={totalYearlySavings} />
+      {/* Stepper (only show after flow selection) */}
+      {flowType && <Stepper currentStep={step} totalSavings={totalYearlySavings} flowType={flowType} />}
 
       <div className="max-w-5xl mx-auto px-6 py-12 pb-32">
-        {/* ÉTAPE 1: Sélection des SaaS */}
-        {step === 1 && (
+        
+        {/* ÉTAPE 0: Choix du flow */}
+        {!flowType && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Nouvelle App"
+              badgeIcon={Sparkles}
+              title="Comment veux-tu"
+              highlight="créer ton app ?"
+              subtitle="Clone un SaaS existant ou laisse libre cours à ton imagination"
+            />
+
+            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {/* Option 1: Clone SaaS */}
+              <button
+                onClick={() => setFlowType('saas')}
+                className="group relative p-8 rounded-3xl text-left transition-all duration-300 border-2 border-white/10 hover:border-violet-500/50 bg-gradient-to-br from-white/5 to-white/[0.02] hover:bg-violet-500/5 hover:scale-[1.02]"
+              >
+                <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                </div>
+                
+                <div className="text-5xl mb-4">💸</div>
+                <h3 className="text-xl font-bold text-white mb-2">Remplacer un SaaS</h3>
+                <p className="text-muted-foreground mb-4">
+                  Clone Notion, Trello, ou d'autres apps et économise des centaines d'euros par an
+                </p>
+                
+                <div className="flex items-center gap-2 text-sm text-violet-400 group-hover:text-violet-300">
+                  <span>Commencer</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+
+              {/* Option 2: Custom Idea */}
+              <button
+                onClick={() => setFlowType('custom')}
+                className="group relative p-8 rounded-3xl text-left transition-all duration-300 border-2 border-white/10 hover:border-pink-500/50 bg-gradient-to-br from-white/5 to-white/[0.02] hover:bg-pink-500/5 hover:scale-[1.02]"
+              >
+                <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center">
+                  <Wand2 className="w-5 h-5 text-pink-400" />
+                </div>
+                
+                <div className="text-5xl mb-4">✨</div>
+                <h3 className="text-xl font-bold text-white mb-2">Ma propre idée</h3>
+                <p className="text-muted-foreground mb-4">
+                  Décris ton app en quelques mots, l'IA améliore ton idée et la construit pour toi
+                </p>
+                
+                <div className="flex items-center gap-2 text-sm text-pink-400 group-hover:text-pink-300">
+                  <span>Créer</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ============ CUSTOM FLOW ============ */}
+        
+        {/* CUSTOM STEP 1: Écrire son idée */}
+        {flowType === 'custom' && step === 1 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Étape 1/3 - Ton idée"
+              badgeIcon={Lightbulb}
+              title="Décris ton"
+              highlight="app de rêve"
+              subtitle="Pas besoin d'être précis, l'IA va améliorer ton idée"
+            />
+
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-6">
+                {/* Textarea */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-white/70 flex items-center gap-2">
+                    <PenLine className="w-4 h-4" />
+                    Ton idée d'application
+                  </label>
+                  <textarea
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="Ex: une app de gestion de budget avec des graphiques, un tracker de dépenses par catégorie..."
+                    rows={5}
+                    className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-transparent transition-all resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {customPrompt.length} caractères • Minimum 10 recommandé
+                  </p>
+                </div>
+
+                {/* Exemples d'idées */}
+                <div className="space-y-3">
+                  <p className="text-sm text-white/50">Exemples pour t'inspirer :</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      "Un tracker d'habitudes avec streaks",
+                      "Un portfolio interactif",
+                      "Un gestionnaire de mots de passe",
+                      "Une app de méditation",
+                      "Un tableau Kanban personnel",
+                    ].map((example) => (
+                      <button
+                        key={example}
+                        onClick={() => setCustomPrompt(example)}
+                        className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 hover:text-white transition-all"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Error */}
+                {enhanceError && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                    {enhanceError}
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8">
+                <Button
+                  variant="ghost"
+                  onClick={resetFlow}
+                  className="hover:bg-white/5"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={handleEnhancePrompt}
+                  disabled={customPrompt.length < 3 || isEnhancing}
+                  className="min-w-[200px] bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-600 hover:to-pink-600 shadow-lg shadow-violet-500/25"
+                >
+                  {isEnhancing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      L'IA réfléchit...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-5 h-5 mr-2" />
+                      Améliorer avec l'IA
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM STEP 2: Voir le prompt amélioré */}
+        {flowType === 'custom' && step === 2 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Étape 2/3 - Magie IA"
+              badgeIcon={Wand2}
+              title="Voici ton idée"
+              highlight="améliorée ✨"
+              subtitle="L'IA a enrichi ton concept avec des détails design et fonctionnels"
+            />
+
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-6">
+                {/* Original prompt */}
+                <div className="space-y-2">
+                  <p className="text-sm text-white/50 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-white/30" />
+                    Ton idée originale
+                  </p>
+                  <p className="text-white/70 text-sm italic pl-4 border-l-2 border-white/10">
+                    "{customPrompt}"
+                  </p>
+                </div>
+
+                {/* Enhanced prompt */}
+                <div className="space-y-3">
+                  <p className="text-sm text-white/70 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-400" />
+                    Version améliorée par l'IA
+                  </p>
+                  <div className="p-5 bg-gradient-to-br from-violet-500/10 to-pink-500/10 border border-violet-500/20 rounded-xl">
+                    <p className="text-white whitespace-pre-wrap text-sm leading-relaxed">
+                      {enhancedPrompt}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Regenerate button */}
+                <button
+                  onClick={handleEnhancePrompt}
+                  disabled={isEnhancing}
+                  className="flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors"
+                >
+                  <RefreshCw className={cn("w-4 h-4", isEnhancing && "animate-spin")} />
+                  Régénérer une autre version
+                </button>
+              </div>
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8">
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep(1)}
+                  className="hover:bg-white/5"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Modifier mon idée
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => setStep(3)}
+                  className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
+                >
+                  Personnaliser
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM STEP 3: Personnalisation (name + color) */}
+        {flowType === 'custom' && step === 3 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Étape 3/3 - Création"
+              badgeIcon={Sparkles}
+              title="Dernière touche"
+              highlight="personnelle"
+              subtitle="Choisis un nom et une couleur pour ton app"
+            />
+
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-8">
+                {/* Nom de l'app */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-white/70">Nom de ton app</label>
+                  <Input
+                    placeholder="Mon App Géniale"
+                    value={appName}
+                    onChange={(e) => setAppName(e.target.value)}
+                    className="h-14 text-lg bg-white/5 border-white/10 focus:border-violet-500 focus:ring-violet-500/20 rounded-xl"
+                  />
+                </div>
+
+                {/* Couleur principale */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-white/70">Couleur principale</label>
+                  <div className="flex flex-wrap gap-3">
+                    {COLORS.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelectedColor(color.id)}
+                        className={cn(
+                          "w-14 h-14 rounded-xl bg-gradient-to-br transition-all duration-300",
+                          color.gradient,
+                          selectedColor === color.id
+                            ? `ring-4 ring-offset-4 ring-offset-[#0a0a0f] ${color.ring} scale-110`
+                            : "hover:scale-110 hover:ring-2 hover:ring-white/20"
+                        )}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recap */}
+                <div className="p-5 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Rocket className="w-5 h-5 text-emerald-400" />
+                    <h4 className="font-semibold text-white">Prêt à créer</h4>
+                  </div>
+                  <p className="text-sm text-white/70">
+                    L'IA va générer ton application complète avec design premium, animations, et persistance locale.
+                  </p>
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8">
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep(2)}
+                  className="hover:bg-white/5"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={handleCreate}
+                  disabled={isLoading}
+                  className="min-w-[220px] h-14 bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 hover:from-violet-600 hover:via-purple-600 hover:to-pink-600 shadow-lg shadow-violet-500/30 transition-all hover:shadow-violet-500/50 hover:scale-105"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Création en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      Créer mon app
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============ SAAS FLOW ============ */}
+
+        {/* SAAS ÉTAPE 1: Sélection des SaaS */}
+        {flowType === 'saas' && step === 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
               badge="Étape 1/3 - Sélection"
               badgeIcon={Target}
               title="Quels SaaS veux-tu"
-              highlight="abandonner"
+              highlight="abandonner ?"
               subtitle="Sélectionne les abonnements que tu paies actuellement. On va te montrer combien tu peux économiser."
             />
+
+            {/* Back to flow selection */}
+            <button
+              onClick={resetFlow}
+              className="mb-6 flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Changer de méthode
+            </button>
 
             <div className="space-y-10">
               {SAAS_CATEGORIES.map((category) => (
@@ -476,8 +893,8 @@ export default function NewAppPage() {
           </div>
         )}
 
-        {/* ÉTAPE 2: Choix du template */}
-        {step === 2 && (
+        {/* SAAS ÉTAPE 2: Choix du template */}
+        {flowType === 'saas' && step === 2 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
               badge="Étape 2/3 - Clone"
@@ -567,8 +984,8 @@ export default function NewAppPage() {
           </div>
         )}
 
-        {/* ÉTAPE 3: Personnalisation */}
-        {step === 3 && selectedSaasForTemplate && templateData && (
+        {/* SAAS ÉTAPE 3: Personnalisation */}
+        {flowType === 'saas' && step === 3 && selectedSaasForTemplate && templateData && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
               badge="Étape 3/3 - Création"
