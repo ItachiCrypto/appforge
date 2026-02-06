@@ -20,6 +20,11 @@ import {
   Wand2,
   PenLine,
   RefreshCw,
+  FileText,
+  Code,
+  ListTodo,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -45,31 +50,85 @@ const COLORS = [
 // Type de flow
 type FlowType = 'saas' | 'custom' | null
 
-// Stepper amélioré
-function Stepper({ currentStep, totalSavings, flowType }: { currentStep: number; totalSavings: number; flowType: FlowType }) {
-  const saasSteps = [
+// BMAD phases for custom flow
+type BmadPhase = 'idea' | 'brief' | 'prd' | 'architecture' | 'epics' | 'customize'
+
+// Stepper pour le flow BMAD
+function BmadStepper({ currentPhase }: { currentPhase: BmadPhase }) {
+  const phases = [
+    { id: 'idea', label: 'Idée', icon: Lightbulb, num: 1 },
+    { id: 'brief', label: 'Brief', icon: FileText, num: 2 },
+    { id: 'prd', label: 'PRD', icon: Target, num: 3 },
+    { id: 'architecture', label: 'Archi', icon: Code, num: 4 },
+    { id: 'epics', label: 'Stories', icon: ListTodo, num: 5 },
+    { id: 'customize', label: 'Créer', icon: Rocket, num: 6 },
+  ]
+
+  const currentIndex = phases.findIndex(p => p.id === currentPhase)
+
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-pink-500/10 blur-3xl -z-10" />
+
+      <div className="bg-background/60 backdrop-blur-xl border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-center gap-1">
+            {phases.map((phase, idx) => {
+              const Icon = phase.icon
+              const isActive = phase.id === currentPhase
+              const isCompleted = idx < currentIndex
+
+              return (
+                <div key={phase.id} className="flex items-center">
+                  <div className={cn(
+                    "relative flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-300",
+                    isActive && "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/25",
+                    isCompleted && "bg-emerald-500/20 text-emerald-400",
+                    !isActive && !isCompleted && "text-muted-foreground"
+                  )}>
+                    {isCompleted ? (
+                      <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    ) : (
+                      <Icon className={cn("w-3.5 h-3.5", isActive && "animate-pulse")} />
+                    )}
+                    <span className="font-medium text-xs hidden sm:block">{phase.label}</span>
+                  </div>
+
+                  {idx < phases.length - 1 && (
+                    <div className={cn(
+                      "w-4 sm:w-8 h-0.5 mx-0.5 rounded-full transition-all duration-500",
+                      idx < currentIndex
+                        ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                        : "bg-white/10"
+                    )} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Stepper pour SaaS flow (inchangé)
+function SaaStepper({ currentStep, totalSavings }: { currentStep: number; totalSavings: number }) {
+  const steps = [
     { num: 1, label: 'Sélection', icon: Target },
     { num: 2, label: 'Clone', icon: Zap },
     { num: 3, label: 'Création', icon: Rocket },
   ]
-  
-  const customSteps = [
-    { num: 1, label: 'Ton idée', icon: Lightbulb },
-    { num: 2, label: 'Magie IA', icon: Wand2 },
-    { num: 3, label: 'Création', icon: Rocket },
-  ]
-  
-  const steps = flowType === 'custom' ? customSteps : saasSteps
 
   return (
     <div className="relative">
-      {/* Background glow */}
       <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-pink-500/10 blur-3xl -z-10" />
 
       <div className="bg-background/60 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-5xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            {/* Steps */}
             <div className="flex items-center gap-1">
               {steps.map((step, idx) => {
                 const Icon = step.icon
@@ -107,8 +166,7 @@ function Stepper({ currentStep, totalSavings, flowType }: { currentStep: number;
               })}
             </div>
 
-            {/* Économies badge (only for SaaS flow) */}
-            {flowType === 'saas' && totalSavings > 0 && (
+            {totalSavings > 0 && (
               <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 rounded-full animate-in slide-in-from-right duration-500">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
@@ -158,6 +216,105 @@ function PageHeader({
   )
 }
 
+// Document viewer component with collapsible sections
+function DocumentViewer({ 
+  title, 
+  icon: Icon, 
+  content, 
+  onRegenerate, 
+  isRegenerating,
+  defaultExpanded = true 
+}: { 
+  title: string
+  icon: React.ElementType
+  content: string
+  onRegenerate?: () => void
+  isRegenerating?: boolean
+  defaultExpanded?: boolean
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+
+  return (
+    <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+            <Icon className="w-5 h-5 text-violet-400" />
+          </div>
+          <span className="font-semibold text-white">{title}</span>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-white/50" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-white/50" />
+        )}
+      </button>
+      
+      {isExpanded && (
+        <div className="px-4 pb-4">
+          <div className="p-4 bg-black/20 border border-white/5 rounded-xl max-h-[400px] overflow-y-auto">
+            <div className="text-white/80 text-sm leading-relaxed prose prose-invert prose-sm max-w-none
+              prose-headings:text-white prose-headings:font-semibold
+              prose-h1:text-xl prose-h1:mt-4 prose-h1:mb-3
+              prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2
+              prose-h3:text-base prose-h3:mt-3 prose-h3:mb-1 prose-h3:text-violet-300
+              prose-p:my-2 prose-ul:my-2 prose-li:my-0.5
+              prose-strong:text-violet-300
+              prose-code:text-pink-300 prose-code:bg-white/10 prose-code:px-1 prose-code:rounded
+              prose-table:text-sm
+            ">
+              {content.split('\n').map((line, i) => {
+                if (line.startsWith('# ')) {
+                  return <h1 key={i} className="text-xl font-bold mt-4 mb-3">{line.replace('# ', '')}</h1>
+                }
+                if (line.startsWith('## ')) {
+                  return <h2 key={i} className="text-lg font-bold mt-4 mb-2">{line.replace('## ', '')}</h2>
+                }
+                if (line.startsWith('### ')) {
+                  return <h3 key={i} className="text-base font-semibold mt-3 mb-1 text-violet-300">{line.replace('### ', '')}</h3>
+                }
+                if (line.startsWith('- ')) {
+                  return <p key={i} className="pl-4 my-1">• {line.replace('- ', '')}</p>
+                }
+                if (line.match(/^\d+\. /)) {
+                  return <p key={i} className="pl-4 my-1">{line}</p>
+                }
+                if (line.startsWith('|')) {
+                  return <p key={i} className="font-mono text-xs my-0.5 text-white/60">{line}</p>
+                }
+                if (line.startsWith('```')) {
+                  return <p key={i} className="text-pink-300/50 text-xs">{line}</p>
+                }
+                if (line.trim() === '---') {
+                  return <hr key={i} className="my-4 border-white/10" />
+                }
+                if (line.trim()) {
+                  return <p key={i} className="my-2">{line}</p>
+                }
+                return null
+              })}
+            </div>
+          </div>
+          
+          {onRegenerate && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
+              disabled={isRegenerating}
+              className="mt-3 flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-4 h-4", isRegenerating && "animate-spin")} />
+              Régénérer
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Carte SaaS améliorée
 function SaaSCard({
   saas,
@@ -180,7 +337,6 @@ function SaaSCard({
           : "border-white/10 hover:border-white/20 hover:bg-white/5"
       )}
     >
-      {/* Selection indicator */}
       <div className={cn(
         "absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300",
         isSelected
@@ -193,7 +349,6 @@ function SaaSCard({
         )} />
       </div>
 
-      {/* Icon */}
       <div className={cn(
         "text-3xl mb-3 transition-transform duration-300",
         "group-hover:scale-110 group-hover:rotate-3"
@@ -201,16 +356,13 @@ function SaaSCard({
         {saas.icon}
       </div>
 
-      {/* Name */}
       <h3 className="font-semibold text-white mb-1">{saas.name}</h3>
 
-      {/* Price */}
       <div className="flex items-baseline gap-1">
         <span className="text-lg font-bold text-violet-400">{formatCurrency(saas.monthlyPrice)}</span>
         <span className="text-sm text-muted-foreground">/mois</span>
       </div>
 
-      {/* Yearly savings on hover */}
       <div className={cn(
         "absolute inset-x-3 -bottom-2 py-1.5 px-3 rounded-lg text-xs font-medium text-center transition-all duration-300",
         "bg-gradient-to-r from-emerald-500/90 to-teal-500/90 text-white",
@@ -264,7 +416,7 @@ function SaaSCategory({
   )
 }
 
-// Bottom bar avec CTA
+// Bottom bar pour SaaS flow
 function BottomBar({
   selectedCount,
   totalMonthlySavings,
@@ -335,18 +487,21 @@ function BottomBar({
 export default function NewAppPage() {
   const router = useRouter()
   const [flowType, setFlowType] = useState<FlowType>(null)
-  const [step, setStep] = useState(1)
   
   // SaaS flow state
+  const [saasStep, setSaasStep] = useState(1)
   const [selectedSaas, setSelectedSaas] = useState<string[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   
-  // Custom flow state
-  const [customPrompt, setCustomPrompt] = useState('')
-  const [appBrief, setAppBrief] = useState('') // BMAD App Brief
-  const [enhancedPrompt, setEnhancedPrompt] = useState('')
-  const [isEnhancing, setIsEnhancing] = useState(false)
-  const [enhanceError, setEnhanceError] = useState<string | null>(null)
+  // BMAD Custom flow state
+  const [bmadPhase, setBmadPhase] = useState<BmadPhase>('idea')
+  const [customIdea, setCustomIdea] = useState('')
+  const [bmadBrief, setBmadBrief] = useState('')
+  const [bmadPrd, setBmadPrd] = useState('')
+  const [bmadArchitecture, setBmadArchitecture] = useState('')
+  const [bmadEpics, setBmadEpics] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [bmadError, setBmadError] = useState<string | null>(null)
   
   // Shared state
   const [appName, setAppName] = useState('')
@@ -354,7 +509,7 @@ export default function NewAppPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Calculs
+  // Calculs SaaS
   const totalMonthlySavings = useMemo(() => {
     return selectedSaas.reduce((total, saasId) => {
       const saas = SAAS_APPS.find(s => s.id === saasId)
@@ -384,33 +539,68 @@ export default function NewAppPage() {
     )
   }
 
-  // Enhance prompt with AI
-  const handleEnhancePrompt = async () => {
-    if (!customPrompt.trim() || customPrompt.length < 3) return
-    
-    setIsEnhancing(true)
-    setEnhanceError(null)
+  // BMAD API call
+  const generateBmadDocument = async (phase: 'brief' | 'prd' | 'architecture' | 'epics') => {
+    setIsGenerating(true)
+    setBmadError(null)
     
     try {
-      const res = await fetch('/api/enhance-prompt', {
+      const body: Record<string, string> = { phase }
+      
+      switch (phase) {
+        case 'brief':
+          body.idea = customIdea
+          break
+        case 'prd':
+          body.brief = bmadBrief
+          break
+        case 'architecture':
+          body.prd = bmadPrd
+          break
+        case 'epics':
+          body.prd = bmadPrd
+          body.architecture = bmadArchitecture
+          break
+      }
+      
+      const res = await fetch('/api/bmad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: customPrompt }),
+        body: JSON.stringify(body),
       })
       
       const data = await res.json()
       
       if (!res.ok) {
-        throw new Error(data.error || 'Erreur lors de l\'amélioration')
+        throw new Error(data.error || 'Erreur lors de la génération')
       }
       
-      setAppBrief(data.appBrief || data.enhancedPrompt)
-      setEnhancedPrompt(data.enhancedPrompt)
-      setStep(2) // Move to enhanced prompt view
+      // Store the document and advance to next phase
+      switch (phase) {
+        case 'brief':
+          setBmadBrief(data.document)
+          setBmadPhase('brief')
+          break
+        case 'prd':
+          setBmadPrd(data.document)
+          setBmadPhase('prd')
+          break
+        case 'architecture':
+          setBmadArchitecture(data.document)
+          setBmadPhase('architecture')
+          break
+        case 'epics':
+          setBmadEpics(data.document)
+          setBmadPhase('epics')
+          break
+      }
+      
+      return data.document
     } catch (err) {
-      setEnhanceError(err instanceof Error ? err.message : 'Erreur inconnue')
+      setBmadError(err instanceof Error ? err.message : 'Erreur inconnue')
+      return null
     } finally {
-      setIsEnhancing(false)
+      setIsGenerating(false)
     }
   }
 
@@ -422,8 +612,8 @@ export default function NewAppPage() {
       return
     }
     
-    if (isCustomFlow && !enhancedPrompt) {
-      setError("Erreur: prompt non amélioré. Retourne à l'étape 1.")
+    if (isCustomFlow && !bmadBrief) {
+      setError("Erreur: documents BMAD manquants.")
       return
     }
 
@@ -431,17 +621,47 @@ export default function NewAppPage() {
     setError(null)
 
     try {
+      // Build the initial prompt from BMAD documents
+      const bmadContext = isCustomFlow ? `
+# 📋 BMAD DOCUMENTATION
+
+${bmadBrief}
+
+---
+
+${bmadPrd}
+
+---
+
+${bmadArchitecture}
+
+---
+
+${bmadEpics}
+
+---
+
+🚀 **INSTRUCTION**: Implémente cette application en suivant les documents BMAD ci-dessus.
+Commence par l'Epic 1, Story 1.1. Crée l'architecture de fichiers définie.
+Utilise localStorage pour la persistance. Design premium obligatoire.
+` : ''
+
       const appData = isCustomFlow ? {
         name: appName || 'Mon App',
-        description: customPrompt.substring(0, 200),
+        description: customIdea.substring(0, 200),
         type: 'WEB',
         metadata: {
           primaryColor: selectedColor,
           customIdea: true,
-          originalIdea: customPrompt, // User's original idea
-          appBrief: appBrief, // BMAD App Brief - source of truth
+          originalIdea: customIdea,
+          bmad: {
+            brief: bmadBrief,
+            prd: bmadPrd,
+            architecture: bmadArchitecture,
+            epics: bmadEpics,
+          },
         },
-        initialPrompt: enhancedPrompt,
+        initialPrompt: bmadContext,
       } : {
         name: appName || `Mon ${templateData!.name}`,
         description: templateData!.description,
@@ -456,11 +676,10 @@ export default function NewAppPage() {
         initialPrompt: templateData!.prompt,
       }
 
-      console.log('[Wizard] Creating app:', {
+      console.log('[Wizard/BMAD] Creating app:', {
         name: appData.name,
         isCustom: isCustomFlow,
-        hasPrompt: !!appData.initialPrompt,
-        promptLength: appData.initialPrompt?.length,
+        hasBmad: !!appData.metadata?.bmad,
       })
 
       const res = await fetch('/api/apps', {
@@ -468,8 +687,6 @@ export default function NewAppPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(appData),
       })
-
-      console.log('[Wizard] API response status:', res.status)
 
       if (!res.ok) {
         let errorData: { error?: string } = {}
@@ -490,11 +707,9 @@ export default function NewAppPage() {
       }
 
       if (!app || !app.id) {
-        console.error('[Wizard] Invalid app response:', app)
         throw new Error('App créée mais ID manquant')
       }
 
-      console.log('[Wizard] App created:', app.id)
       router.push(`/app/${app.id}`)
     } catch (err) {
       console.error('[Wizard] Create app error:', err)
@@ -507,15 +722,18 @@ export default function NewAppPage() {
   // Reset to flow selection
   const resetFlow = () => {
     setFlowType(null)
-    setStep(1)
+    setSaasStep(1)
+    setBmadPhase('idea')
     setSelectedSaas([])
     setSelectedTemplate(null)
-    setCustomPrompt('')
-    setAppBrief('')
-    setEnhancedPrompt('')
+    setCustomIdea('')
+    setBmadBrief('')
+    setBmadPrd('')
+    setBmadArchitecture('')
+    setBmadEpics('')
     setAppName('')
     setError(null)
-    setEnhanceError(null)
+    setBmadError(null)
   }
 
   return (
@@ -527,12 +745,13 @@ export default function NewAppPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-violet-500/10 to-pink-500/10 rounded-full blur-[128px]" />
       </div>
 
-      {/* Stepper (only show after flow selection) */}
-      {flowType && <Stepper currentStep={step} totalSavings={totalYearlySavings} flowType={flowType} />}
+      {/* Steppers */}
+      {flowType === 'custom' && <BmadStepper currentPhase={bmadPhase} />}
+      {flowType === 'saas' && <SaaStepper currentStep={saasStep} totalSavings={totalYearlySavings} />}
 
       <div className="max-w-5xl mx-auto px-6 py-12 pb-32">
         
-        {/* ÉTAPE 0: Choix du flow */}
+        {/* ============ FLOW SELECTION ============ */}
         {!flowType && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
@@ -540,7 +759,7 @@ export default function NewAppPage() {
               badgeIcon={Sparkles}
               title="Comment veux-tu"
               highlight="créer ton app ?"
-              subtitle="Clone un SaaS existant ou laisse libre cours à ton imagination"
+              subtitle="Clone un SaaS existant ou laisse l'IA planifier ton projet"
             />
 
             <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
@@ -565,7 +784,7 @@ export default function NewAppPage() {
                 </div>
               </button>
 
-              {/* Option 2: Custom Idea */}
+              {/* Option 2: BMAD Custom Flow */}
               <button
                 onClick={() => setFlowType('custom')}
                 className="group relative p-8 rounded-3xl text-left transition-all duration-300 border-2 border-white/10 hover:border-pink-500/50 bg-gradient-to-br from-white/5 to-white/[0.02] hover:bg-pink-500/5 hover:scale-[1.02]"
@@ -577,11 +796,11 @@ export default function NewAppPage() {
                 <div className="text-5xl mb-4">✨</div>
                 <h3 className="text-xl font-bold text-white mb-2">Ma propre idée</h3>
                 <p className="text-muted-foreground mb-4">
-                  Décris ton app en quelques mots, l'IA améliore ton idée et la construit pour toi
+                  Méthode BMAD : l'IA crée Brief → PRD → Architecture → Stories, puis code ton app
                 </p>
                 
                 <div className="flex items-center gap-2 text-sm text-pink-400 group-hover:text-pink-300">
-                  <span>Créer</span>
+                  <span>Planifier & Créer</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </button>
@@ -589,53 +808,51 @@ export default function NewAppPage() {
           </div>
         )}
 
-        {/* ============ CUSTOM FLOW ============ */}
+        {/* ============ BMAD CUSTOM FLOW ============ */}
         
-        {/* CUSTOM STEP 1: Écrire son idée */}
-        {flowType === 'custom' && step === 1 && (
+        {/* BMAD Phase 1: Idée */}
+        {flowType === 'custom' && bmadPhase === 'idea' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
-              badge="Étape 1/3 - Ton idée"
+              badge="Phase 1/6 - Ton idée"
               badgeIcon={Lightbulb}
               title="Décris ton"
               highlight="app de rêve"
-              subtitle="Pas besoin d'être précis, l'IA va améliorer ton idée"
+              subtitle="L'IA va créer une documentation complète (Brief, PRD, Architecture, Stories)"
             />
 
             <div className="max-w-2xl mx-auto">
               <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-6">
-                {/* Textarea */}
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-white/70 flex items-center gap-2">
                     <PenLine className="w-4 h-4" />
                     Ton idée d'application
                   </label>
                   <textarea
-                    value={customPrompt}
-                    onChange={(e) => setCustomPrompt(e.target.value)}
-                    placeholder="Ex: une app de gestion de budget avec des graphiques, un tracker de dépenses par catégorie..."
+                    value={customIdea}
+                    onChange={(e) => setCustomIdea(e.target.value)}
+                    placeholder="Ex: une app de gestion de budget avec des graphiques, un tracker de dépenses par catégorie, des objectifs d'épargne..."
                     rows={5}
                     className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-transparent transition-all resize-none"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {customPrompt.length} caractères • Minimum 10 recommandé
+                    {customIdea.length} caractères • Plus tu es précis, meilleur sera le résultat
                   </p>
                 </div>
 
-                {/* Exemples d'idées */}
                 <div className="space-y-3">
                   <p className="text-sm text-white/50">Exemples pour t'inspirer :</p>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      "Un tracker d'habitudes avec streaks",
-                      "Un portfolio interactif",
-                      "Un gestionnaire de mots de passe",
-                      "Une app de méditation",
-                      "Un tableau Kanban personnel",
+                      "Un tracker d'habitudes avec streaks et statistiques",
+                      "Un gestionnaire de projets style Notion simplifié",
+                      "Une app de méditation avec timer et sons",
+                      "Un tableau Kanban pour gérer mes tâches",
+                      "Un journal personnel avec tags et recherche",
                     ].map((example) => (
                       <button
                         key={example}
-                        onClick={() => setCustomPrompt(example)}
+                        onClick={() => setCustomIdea(example)}
                         className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 hover:text-white transition-all"
                       >
                         {example}
@@ -644,39 +861,33 @@ export default function NewAppPage() {
                   </div>
                 </div>
 
-                {/* Error */}
-                {enhanceError && (
+                {bmadError && (
                   <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
-                    {enhanceError}
+                    {bmadError}
                   </div>
                 )}
               </div>
 
-              {/* Navigation */}
               <div className="flex justify-between mt-8">
-                <Button
-                  variant="ghost"
-                  onClick={resetFlow}
-                  className="hover:bg-white/5"
-                >
+                <Button variant="ghost" onClick={resetFlow} className="hover:bg-white/5">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Retour
                 </Button>
                 <Button
                   size="lg"
-                  onClick={handleEnhancePrompt}
-                  disabled={customPrompt.length < 3 || isEnhancing}
+                  onClick={() => generateBmadDocument('brief')}
+                  disabled={customIdea.length < 10 || isGenerating}
                   className="min-w-[200px] bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-600 hover:to-pink-600 shadow-lg shadow-violet-500/25"
                 >
-                  {isEnhancing ? (
+                  {isGenerating ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      L'IA réfléchit...
+                      Génération du Brief...
                     </>
                   ) : (
                     <>
                       <Wand2 className="w-5 h-5 mr-2" />
-                      Améliorer avec l'IA
+                      Générer le Brief
                     </>
                   )}
                 </Button>
@@ -685,96 +896,226 @@ export default function NewAppPage() {
           </div>
         )}
 
-        {/* CUSTOM STEP 2: Voir le prompt amélioré */}
-        {flowType === 'custom' && step === 2 && (
+        {/* BMAD Phase 2: Brief Review */}
+        {flowType === 'custom' && bmadPhase === 'brief' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
-              badge="Étape 2/3 - Magie IA"
-              badgeIcon={Wand2}
-              title="Voici ton idée"
-              highlight="améliorée ✨"
-              subtitle="L'IA a enrichi ton concept avec des détails design et fonctionnels"
+              badge="Phase 2/6 - Product Brief"
+              badgeIcon={FileText}
+              title="Voici ton"
+              highlight="Product Brief ✨"
+              subtitle="Ce document définit la vision stratégique de ton app"
             />
 
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-6">
-                {/* Original idea */}
-                <div className="space-y-2">
-                  <p className="text-sm text-white/50 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-white/30" />
-                    Ton idée originale
-                  </p>
-                  <p className="text-white/70 text-sm italic pl-4 border-l-2 border-white/10">
-                    "{customPrompt}"
-                  </p>
+            <div className="max-w-3xl mx-auto space-y-6">
+              <DocumentViewer
+                title="Product Brief"
+                icon={FileText}
+                content={bmadBrief}
+                onRegenerate={() => generateBmadDocument('brief')}
+                isRegenerating={isGenerating}
+              />
+
+              {bmadError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                  {bmadError}
                 </div>
+              )}
 
-                {/* App Brief (BMAD) */}
-                <div className="space-y-3">
-                  <p className="text-sm text-white/70 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-violet-400" />
-                    App Brief généré (méthode BMAD)
-                  </p>
-                  <div className="p-5 bg-gradient-to-br from-violet-500/10 to-pink-500/10 border border-violet-500/20 rounded-xl max-h-[400px] overflow-y-auto">
-                    <div className="text-white text-sm leading-relaxed prose prose-invert prose-sm max-w-none
-                      prose-headings:text-white prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
-                      prose-h2:text-lg prose-h3:text-base
-                      prose-p:my-2 prose-ul:my-2 prose-li:my-0.5
-                      prose-strong:text-violet-300
-                    ">
-                      {appBrief.split('\n').map((line, i) => {
-                        // Format headings
-                        if (line.startsWith('## ')) {
-                          return <h2 key={i} className="text-lg font-bold mt-4 mb-2">{line.replace('## ', '')}</h2>
-                        }
-                        if (line.startsWith('### ')) {
-                          return <h3 key={i} className="text-base font-semibold mt-3 mb-1 text-violet-300">{line.replace('### ', '')}</h3>
-                        }
-                        if (line.startsWith('- ')) {
-                          return <p key={i} className="pl-4 my-1">• {line.replace('- ', '')}</p>
-                        }
-                        if (line.match(/^\d+\. /)) {
-                          return <p key={i} className="pl-4 my-1">{line}</p>
-                        }
-                        if (line.trim() === '---') {
-                          return <hr key={i} className="my-4 border-white/10" />
-                        }
-                        if (line.trim()) {
-                          return <p key={i} className="my-2">{line}</p>
-                        }
-                        return null
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Regenerate button */}
-                <button
-                  onClick={handleEnhancePrompt}
-                  disabled={isEnhancing}
-                  className="flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors"
-                >
-                  <RefreshCw className={cn("w-4 h-4", isEnhancing && "animate-spin")} />
-                  Régénérer un autre brief
-                </button>
-              </div>
-
-              {/* Navigation */}
-              <div className="flex justify-between mt-8">
-                <Button
-                  variant="ghost"
-                  onClick={() => setStep(1)}
-                  className="hover:bg-white/5"
-                >
+              <div className="flex justify-between">
+                <Button variant="ghost" onClick={() => setBmadPhase('idea')} className="hover:bg-white/5">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Modifier mon idée
+                  Modifier l'idée
                 </Button>
                 <Button
                   size="lg"
-                  onClick={() => setStep(3)}
+                  onClick={() => generateBmadDocument('prd')}
+                  disabled={isGenerating}
                   className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
                 >
-                  Personnaliser
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Génération du PRD...
+                    </>
+                  ) : (
+                    <>
+                      Générer le PRD
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BMAD Phase 3: PRD Review */}
+        {flowType === 'custom' && bmadPhase === 'prd' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Phase 3/6 - PRD"
+              badgeIcon={Target}
+              title="Product Requirements"
+              highlight="Document 📋"
+              subtitle="Fonctionnalités détaillées, user stories, et critères d'acceptation"
+            />
+
+            <div className="max-w-3xl mx-auto space-y-6">
+              <DocumentViewer
+                title="Product Brief"
+                icon={FileText}
+                content={bmadBrief}
+                defaultExpanded={false}
+              />
+              
+              <DocumentViewer
+                title="PRD - Product Requirements Document"
+                icon={Target}
+                content={bmadPrd}
+                onRegenerate={() => generateBmadDocument('prd')}
+                isRegenerating={isGenerating}
+              />
+
+              {bmadError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                  {bmadError}
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                <Button variant="ghost" onClick={() => setBmadPhase('brief')} className="hover:bg-white/5">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour au Brief
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => generateBmadDocument('architecture')}
+                  disabled={isGenerating}
+                  className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Génération Architecture...
+                    </>
+                  ) : (
+                    <>
+                      Générer l'Architecture
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BMAD Phase 4: Architecture Review */}
+        {flowType === 'custom' && bmadPhase === 'architecture' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Phase 4/6 - Architecture"
+              badgeIcon={Code}
+              title="Architecture"
+              highlight="Technique 🏗️"
+              subtitle="Stack, structure des fichiers, patterns, et décisions techniques (ADRs)"
+            />
+
+            <div className="max-w-3xl mx-auto space-y-6">
+              <DocumentViewer
+                title="PRD"
+                icon={Target}
+                content={bmadPrd}
+                defaultExpanded={false}
+              />
+              
+              <DocumentViewer
+                title="Architecture Technique"
+                icon={Code}
+                content={bmadArchitecture}
+                onRegenerate={() => generateBmadDocument('architecture')}
+                isRegenerating={isGenerating}
+              />
+
+              {bmadError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                  {bmadError}
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                <Button variant="ghost" onClick={() => setBmadPhase('prd')} className="hover:bg-white/5">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour au PRD
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => generateBmadDocument('epics')}
+                  disabled={isGenerating}
+                  className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Génération Stories...
+                    </>
+                  ) : (
+                    <>
+                      Générer les Stories
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BMAD Phase 5: Epics & Stories Review */}
+        {flowType === 'custom' && bmadPhase === 'epics' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <PageHeader
+              badge="Phase 5/6 - Epics & Stories"
+              badgeIcon={ListTodo}
+              title="Plan"
+              highlight="d'Implémentation 📋"
+              subtitle="Epics, stories, et ordre de développement"
+            />
+
+            <div className="max-w-3xl mx-auto space-y-6">
+              <DocumentViewer
+                title="Architecture"
+                icon={Code}
+                content={bmadArchitecture}
+                defaultExpanded={false}
+              />
+              
+              <DocumentViewer
+                title="Epics & Stories"
+                icon={ListTodo}
+                content={bmadEpics}
+                onRegenerate={() => generateBmadDocument('epics')}
+                isRegenerating={isGenerating}
+              />
+
+              {bmadError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                  {bmadError}
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                <Button variant="ghost" onClick={() => setBmadPhase('architecture')} className="hover:bg-white/5">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour à l'Architecture
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => setBmadPhase('customize')}
+                  className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
+                >
+                  Personnaliser & Créer
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
@@ -782,19 +1123,45 @@ export default function NewAppPage() {
           </div>
         )}
 
-        {/* CUSTOM STEP 3: Personnalisation (name + color) */}
-        {flowType === 'custom' && step === 3 && (
+        {/* BMAD Phase 6: Customize & Create */}
+        {flowType === 'custom' && bmadPhase === 'customize' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
-              badge="Étape 3/3 - Création"
-              badgeIcon={Sparkles}
+              badge="Phase 6/6 - Création"
+              badgeIcon={Rocket}
               title="Dernière touche"
-              highlight="personnelle"
-              subtitle="Choisis un nom et une couleur pour ton app"
+              highlight="personnelle ✨"
+              subtitle="Choisis un nom et une couleur, puis l'IA code ton app"
             />
 
             <div className="max-w-2xl mx-auto">
               <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-8 space-y-8">
+                {/* Recap des docs BMAD */}
+                <div className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/20 rounded-2xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-5 h-5 text-violet-400" />
+                    <h4 className="font-semibold text-white">Documentation BMAD complète</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Check className="w-4 h-4" />
+                      <span>Product Brief</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Check className="w-4 h-4" />
+                      <span>PRD</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Check className="w-4 h-4" />
+                      <span>Architecture</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Check className="w-4 h-4" />
+                      <span>Epics & Stories</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Nom de l'app */}
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-white/70">Nom de ton app</label>
@@ -827,32 +1194,27 @@ export default function NewAppPage() {
                   </div>
                 </div>
 
-                {/* Recap */}
+                {/* Info */}
                 <div className="p-5 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl">
                   <div className="flex items-center gap-2 mb-3">
                     <Rocket className="w-5 h-5 text-emerald-400" />
                     <h4 className="font-semibold text-white">Prêt à créer</h4>
                   </div>
                   <p className="text-sm text-white/70">
-                    L'IA va générer ton application complète avec design premium, animations, et persistance locale.
+                    L'IA va générer ton application complète en suivant les 4 documents BMAD.
+                    Elle commencera par l'Epic 1, Story 1.1, puis avancera progressivement.
                   </p>
                 </div>
               </div>
 
-              {/* Error */}
               {error && (
                 <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
                   {error}
                 </div>
               )}
 
-              {/* Navigation */}
               <div className="flex justify-between mt-8">
-                <Button
-                  variant="ghost"
-                  onClick={() => setStep(2)}
-                  className="hover:bg-white/5"
-                >
+                <Button variant="ghost" onClick={() => setBmadPhase('epics')} className="hover:bg-white/5">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Retour
                 </Button>
@@ -879,10 +1241,10 @@ export default function NewAppPage() {
           </div>
         )}
 
-        {/* ============ SAAS FLOW ============ */}
+        {/* ============ SAAS FLOW (unchanged) ============ */}
 
         {/* SAAS ÉTAPE 1: Sélection des SaaS */}
-        {flowType === 'saas' && step === 1 && (
+        {flowType === 'saas' && saasStep === 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
               badge="Étape 1/3 - Sélection"
@@ -892,7 +1254,6 @@ export default function NewAppPage() {
               subtitle="Sélectionne les abonnements que tu paies actuellement. On va te montrer combien tu peux économiser."
             />
 
-            {/* Back to flow selection */}
             <button
               onClick={resetFlow}
               className="mb-6 flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
@@ -917,14 +1278,14 @@ export default function NewAppPage() {
               selectedCount={selectedSaas.length}
               totalMonthlySavings={totalMonthlySavings}
               totalYearlySavings={totalYearlySavings}
-              onContinue={() => setStep(2)}
+              onContinue={() => setSaasStep(2)}
               disabled={selectedSaas.length === 0}
             />
           </div>
         )}
 
         {/* SAAS ÉTAPE 2: Choix du template */}
-        {flowType === 'saas' && step === 2 && (
+        {flowType === 'saas' && saasStep === 2 && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
               badge="Étape 2/3 - Clone"
@@ -995,7 +1356,7 @@ export default function NewAppPage() {
             <div className="flex justify-between">
               <Button
                 variant="ghost"
-                onClick={() => setStep(1)}
+                onClick={() => setSaasStep(1)}
                 className="hover:bg-white/5"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1003,7 +1364,7 @@ export default function NewAppPage() {
               </Button>
               <Button
                 size="lg"
-                onClick={() => setStep(3)}
+                onClick={() => setSaasStep(3)}
                 disabled={!selectedTemplate}
                 className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
               >
@@ -1015,7 +1376,7 @@ export default function NewAppPage() {
         )}
 
         {/* SAAS ÉTAPE 3: Personnalisation */}
-        {flowType === 'saas' && step === 3 && selectedSaasForTemplate && templateData && (
+        {flowType === 'saas' && saasStep === 3 && selectedSaasForTemplate && templateData && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <PageHeader
               badge="Étape 3/3 - Création"
@@ -1101,18 +1462,16 @@ export default function NewAppPage() {
                 </div>
               </div>
 
-              {/* Message d'erreur */}
               {error && (
                 <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
                   {error}
                 </div>
               )}
 
-              {/* Navigation et CTA */}
               <div className="flex justify-between mt-8">
                 <Button
                   variant="ghost"
-                  onClick={() => setStep(2)}
+                  onClick={() => setSaasStep(2)}
                   className="hover:bg-white/5"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />

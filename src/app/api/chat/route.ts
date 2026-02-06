@@ -294,13 +294,19 @@ export async function POST(req: NextRequest) {
         totalSizeBytes: totalSize,
       })
       
-      // BMAD Method: Inject App Brief if available
-      // This gives the AI context about the original vision and MVP scope
+      // BMAD Method: Inject all BMAD documents if available
+      // This gives the AI the complete context: Brief, PRD, Architecture, Stories
       if (app?.metadata && typeof app.metadata === 'object') {
         const briefContext = buildAppBriefContext(app.metadata as {
           initialPrompt?: string;
           appBrief?: string;
           originalIdea?: string;
+          bmad?: {
+            brief?: string;
+            prd?: string;
+            architecture?: string;
+            epics?: string;
+          };
         })
         if (briefContext) {
           systemPrompt += briefContext
@@ -314,12 +320,18 @@ export async function POST(req: NextRequest) {
         systemPrompt += buildLegacyContext(codeFiles)
       }
       
-      // BMAD Method: Also inject App Brief in legacy mode
+      // BMAD Method: Also inject all BMAD documents in legacy mode
       if (app?.metadata && typeof app.metadata === 'object') {
         const briefContext = buildAppBriefContext(app.metadata as {
           initialPrompt?: string;
           appBrief?: string;
           originalIdea?: string;
+          bmad?: {
+            brief?: string;
+            prd?: string;
+            architecture?: string;
+            epics?: string;
+          };
         })
         if (briefContext) {
           systemPrompt += briefContext

@@ -686,27 +686,110 @@ export function buildLegacyContext(files: Record<string, string>): string {
 }
 
 /**
- * BMAD Method - App Brief Context Injection
+ * BMAD Method - Full Documentation Context Injection
  * 
- * If an App Brief exists (from the BMAD-style planning phase),
- * inject it into the context so the AI always has the "source of truth"
- * for what the app should be and do.
+ * If BMAD documents exist (from the multi-phase planning workflow),
+ * inject them into the context so the AI always has the complete
+ * "source of truth" for what the app should be and how to build it.
+ * 
+ * BMAD Documents (in order):
+ * 1. Product Brief - Strategic vision
+ * 2. PRD - Functional & Non-functional requirements
+ * 3. Architecture - Technical decisions, file structure, patterns
+ * 4. Epics & Stories - Implementation breakdown
  */
 export function buildAppBriefContext(metadata: {
   initialPrompt?: string;
   appBrief?: string;
   originalIdea?: string;
+  bmad?: {
+    brief?: string;
+    prd?: string;
+    architecture?: string;
+    epics?: string;
+  };
 } | null): string {
   if (!metadata) return '';
   
-  // Check for App Brief (new BMAD format) or initialPrompt (legacy)
+  // Check for full BMAD documentation (new multi-phase format)
+  if (metadata.bmad) {
+    const { brief, prd, architecture, epics } = metadata.bmad;
+    
+    // Build comprehensive BMAD context
+    let context = `
+
+# 📚 BMAD DOCUMENTATION (Source of Truth)
+
+**IMPORTANT**: Ces documents définissent la vision, les requirements, l'architecture et le plan d'implémentation.
+Tu DOIS suivre ces documents. Toute modification doit rester cohérente avec eux.
+
+`;
+    
+    if (brief) {
+      context += `
+---
+## 📋 PRODUCT BRIEF
+
+${brief}
+`;
+    }
+    
+    if (prd) {
+      context += `
+---
+## 📄 PRD (Product Requirements Document)
+
+${prd}
+`;
+    }
+    
+    if (architecture) {
+      context += `
+---
+## 🏗️ ARCHITECTURE TECHNIQUE
+
+${architecture}
+`;
+    }
+    
+    if (epics) {
+      context += `
+---
+## 📋 EPICS & STORIES
+
+${epics}
+`;
+    }
+    
+    context += `
+---
+
+## 🎯 INSTRUCTIONS D'IMPLÉMENTATION
+
+1. **Suis la structure de fichiers** définie dans l'Architecture
+2. **Implémente les stories dans l'ordre** défini dans les Epics
+3. **Respecte les patterns** documentés (naming, state management, etc.)
+4. **Utilise le design system** spécifié (couleurs, spacing, animations)
+5. **Vérifie les critères d'acceptation** de chaque story
+
+Commence par l'Epic 1, Story 1.1 si l'app n'existe pas encore.
+Pour les modifications, identifie la story concernée et suis ses critères.
+
+---
+`;
+    
+    return context;
+  }
+  
+  // Check for legacy App Brief format
   const brief = metadata.appBrief || metadata.initialPrompt;
   if (!brief) return '';
   
   // Check if it's a BMAD-style brief (contains ## 📋 APP BRIEF or structured sections)
   const isBmadBrief = brief.includes('## 📋 APP BRIEF') || 
                        brief.includes('### 🎯 Vision') ||
-                       brief.includes('### ✨ Fonctionnalités');
+                       brief.includes('### ✨ Fonctionnalités') ||
+                       brief.includes('# 📋 PRODUCT BRIEF');
   
   if (isBmadBrief) {
     return `
@@ -739,38 +822,56 @@ Garde cette vision en tête pour toutes les modifications.
 
 /**
  * BMAD Methodology Prompt Addition
- * Teaches the AI about the BMAD method and how to use the App Brief
+ * Teaches the AI about the BMAD method and how to use the documentation chain
  */
 export const BMAD_METHODOLOGY_PROMPT = `
 
 ## 🎯 MÉTHODOLOGIE BMAD (Breakthrough Method of Agile AI Driven Development)
 
-Tu utilises une approche inspirée de BMAD pour créer des apps de qualité.
+Tu utilises la méthodologie BMAD pour créer des apps de qualité professionnelle.
 
-### Principes Clés
+### La Chaîne de Documents BMAD
 
-1. **Brief First** - Si un App Brief existe, c'est ta "source of truth"
-   - Respecte la vision définie
-   - Implémente les fonctionnalités MVP listées
-   - Suis les choix de design documentés
+Quand une app est créée avec BMAD, tu reçois 4 documents qui forment une chaîne cohérente:
 
-2. **MVP Focus** - Livre les fonctionnalités essentielles d'abord
-   - Maximum 5 features pour la v1
-   - Chaque feature doit être complète et fonctionnelle
-   - Pas de "TODO" ou placeholders
+1. **Product Brief** → Vision stratégique, personas, contraintes
+2. **PRD** → Requirements fonctionnels (FR) et non-fonctionnels (NFR), user stories
+3. **Architecture** → Stack, structure fichiers, patterns, ADRs (décisions techniques)
+4. **Epics & Stories** → Plan d'implémentation avec critères d'acceptation
 
-3. **Cohérence** - Chaque modification doit rester alignée avec le brief
-   - Si une demande contredit le brief → clarifie avec l'utilisateur
-   - Si tu ajoutes une feature → elle doit s'intégrer au design existant
+### Règles d'Utilisation
 
-4. **Itératif** - Améliore progressivement
-   - Commence par le core, puis étends
-   - Chaque itération = app fonctionnelle complète
+**SI les documents BMAD existent:**
+- Ils sont ta "source of truth" absolue
+- Suis la structure de fichiers de l'Architecture EXACTEMENT
+- Implémente les stories dans l'ORDRE défini
+- Chaque story a des critères d'acceptation → vérifie-les
+- Utilise les patterns et conventions documentés
+- Respecte le design system (couleurs, spacing, etc.)
 
-### Quand il n'y a PAS de Brief
+**Pour une NOUVELLE app (pas encore de code):**
+1. Commence par Epic 1, Story 1.1
+2. Crée les fichiers dans l'ordre défini par l'Architecture
+3. Crée les composants AVANT App.js
+4. Vérifie les critères d'acceptation de la story
 
-Si l'utilisateur donne une instruction directe sans brief:
+**Pour une MODIFICATION:**
+1. Identifie quelle story ou FR est concerné
+2. Vérifie que la modification est cohérente avec le PRD
+3. Suis les patterns définis dans l'Architecture
+4. Ne casse pas les fonctionnalités existantes
+
+### Cohérence & Conflits
+
+- Si une demande utilisateur CONTREDIT les documents → clarifie avec lui
+- Si tu dois étendre au-delà du scope → préviens l'utilisateur
+- Les ADRs (Architecture Decision Records) sont des décisions FINALES → ne les change pas
+
+### Quand il n'y a PAS de documents BMAD
+
+Si l'utilisateur donne une instruction directe sans documentation:
 1. Interprète créativement son intention
 2. Applique les standards de design premium par défaut
-3. Crée une app MVP fonctionnelle
+3. Crée une app MVP fonctionnelle (max 5 features)
+4. Structure multi-fichiers si >200 lignes
 `;
