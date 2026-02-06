@@ -50,12 +50,18 @@ function detectProjectStructure(files: Record<string, string>): 'vite' | 'simple
   
   // Check if code imports external npm packages that require bundler support
   const needsExternalDeps = 
-    contents.includes("from 'react-router-dom'") ||
-    contents.includes('from "react-router-dom"') ||
-    contents.includes("from 'ethers'") ||
-    contents.includes('from "ethers"') ||
-    contents.includes("from '@ethersproject") ||
-    contents.includes("from 'wagmi'")
+    contents.includes('react-router-dom') ||
+    contents.includes('ethers') ||
+    contents.includes('@ethersproject') ||
+    contents.includes('wagmi') ||
+    contents.includes('framer-motion') ||
+    contents.includes('date-fns') ||
+    contents.includes('zustand') ||
+    contents.includes('@tanstack/react-query') ||
+    contents.includes('chart.js') ||
+    contents.includes('recharts') ||
+    contents.includes("from 'axios'") ||
+    contents.includes("from 'uuid'")
   
   // Force Vite structure for external deps, /src/, or multi-file structures
   if (hasSrcFolder || hasComponents || hasPages || hasHooks || hasUtils || needsExternalDeps) {
@@ -321,10 +327,14 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
       const structure = detectProjectStructure(files)
       const contents = Object.values(files).join('\n')
       const hasExternalDeps = 
-        contents.includes("from 'react-router-dom'") ||
-        contents.includes('from "react-router-dom"') ||
-        contents.includes("from 'ethers'") ||
-        contents.includes('from "ethers"')
+        contents.includes('react-router-dom') ||
+        contents.includes('ethers') ||
+        contents.includes('framer-motion') ||
+        contents.includes('date-fns') ||
+        contents.includes('zustand') ||
+        contents.includes('@tanstack/react-query') ||
+        contents.includes('chart.js') ||
+        contents.includes('recharts')
       
       console.log('[WebPreview] v2 Detected structure:', structure, 'needsExternalDeps:', hasExternalDeps)
       console.log('[WebPreview] v2 Input file paths:', Object.keys(files))
@@ -369,24 +379,68 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
     )
   }
   
-  // Build dependencies based on what's actually needed
-  const dependencies: Record<string, string> = {}
-  if (needsExternalDeps) {
+  // Build dependencies based on what's actually used in the code
+  const dependencies = useMemo(() => {
+    const deps: Record<string, string> = {}
     const contents = Object.values(files).join('\n')
+    
+    // React Router
     if (contents.includes('react-router-dom')) {
-      dependencies['react-router-dom'] = '^6.20.0'
+      deps['react-router-dom'] = '^6.20.0'
     }
+    // Ethers / Web3
     if (contents.includes('ethers')) {
-      dependencies['ethers'] = '^5.7.2'
+      deps['ethers'] = '^5.7.2'
     }
-  }
+    // Axios
+    if (contents.includes("from 'axios'") || contents.includes('from "axios"')) {
+      deps['axios'] = '^1.6.0'
+    }
+    // Framer Motion
+    if (contents.includes('framer-motion')) {
+      deps['framer-motion'] = '^10.16.0'
+    }
+    // Date-fns
+    if (contents.includes('date-fns')) {
+      deps['date-fns'] = '^2.30.0'
+    }
+    // UUID
+    if (contents.includes("from 'uuid'") || contents.includes('from "uuid"')) {
+      deps['uuid'] = '^9.0.0'
+    }
+    // Zustand
+    if (contents.includes('zustand')) {
+      deps['zustand'] = '^4.4.0'
+    }
+    // React Query
+    if (contents.includes('@tanstack/react-query')) {
+      deps['@tanstack/react-query'] = '^5.0.0'
+    }
+    // Chart.js
+    if (contents.includes('chart.js') || contents.includes('react-chartjs-2')) {
+      deps['chart.js'] = '^4.4.0'
+      deps['react-chartjs-2'] = '^5.2.0'
+    }
+    // Recharts
+    if (contents.includes('recharts')) {
+      deps['recharts'] = '^2.10.0'
+    }
+    
+    return deps
+  }, [files])
+  
+  // Create a stable key that forces remount when deps/template change
+  const sandpackKey = useMemo(() => {
+    const depsKey = Object.keys(dependencies).sort().join(',')
+    return `${template}-${depsKey}-${key}`
+  }, [template, dependencies, key])
   
   console.log('[WebPreview] v2 Rendering with:', {
     template,
     fileCount: Object.keys(preparedFiles).length,
     filePaths: Object.keys(preparedFiles),
     dependencies,
-    needsExternalDeps
+    sandpackKey
   })
   
   return (
@@ -401,10 +455,11 @@ export function WebPreview({ files, showCode = false }: WebPreviewProps) {
       onReset={handleRetry}
     >
       <SandpackProvider
+        key={sandpackKey}
         template={template}
         files={preparedFiles}
         theme="auto"
-        customSetup={needsExternalDeps ? { dependencies } : undefined}
+        customSetup={Object.keys(dependencies).length > 0 ? { dependencies } : undefined}
         options={{
           externalResources: [
             "https://cdn.tailwindcss.com",
