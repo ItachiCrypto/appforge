@@ -63,9 +63,8 @@ const MODEL_API_NAMES: Record<string, string> = {
   'gpt-4-turbo': 'gpt-4-turbo',
   'o1': 'o1',
   'o1-mini': 'o1-mini',
-  // Moonshot/Kimi uses different naming
-  'kimi-k2': 'moonshot-v1-32k',
-  'kimi-k2.5': 'moonshot-v1-128k',
+  // Kimi models - use native model IDs directly
+  'kimi-k2.5': 'kimi-k2.5',
 }
 
 // Kimi API base URL

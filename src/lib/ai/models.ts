@@ -107,7 +107,7 @@ export const AI_MODELS = {
     inputCostPer1M: 2,
     outputCostPer1M: 8,
     maxTokens: 8192,
-    contextWindow: 131072,
+    contextWindow: 262144,
   },
 } as const
 
@@ -151,7 +151,7 @@ export function calculateCost(
 /**
  * Get default model
  */
-export const DEFAULT_MODEL: ModelKey = 'claude-sonnet-4'
+export const DEFAULT_MODEL: ModelKey = 'kimi-k2.5'
 
 /**
  * List of model keys for UI selection

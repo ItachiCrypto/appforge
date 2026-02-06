@@ -624,10 +624,10 @@ export default function NewAppPage() {
       // Handle non-JSON responses gracefully
       let data: { document?: string; error?: string }
       try {
-        data = await res.json()
+        data = await res.clone().json()
       } catch {
         const text = await res.text().catch(() => 'Unknown error')
-        throw new Error(`Erreur API: ${text.substring(0, 100)}`)
+        throw new Error(`Erreur API: ${text.substring(0, 200)}`)
       }
       
       if (!res.ok) {

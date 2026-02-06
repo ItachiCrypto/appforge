@@ -532,9 +532,8 @@ const MODEL_API_NAMES: Record<string, string> = {
   'gpt-4-turbo': 'gpt-4-turbo',
   'o1': 'o1',
   'o1-mini': 'o1-mini',
-  // Moonshot/Kimi uses different naming
-  'kimi-k2': 'moonshot-v1-32k',
-  'kimi-k2.5': 'moonshot-v1-128k',
+  // Kimi models - use native model IDs directly
+  'kimi-k2.5': 'kimi-k2.5',
 }
 
 const KIMI_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -732,9 +731,10 @@ export async function POST(req: NextRequest) {
         })
         result = response.choices[0]?.message?.content || ''
       }
-    } catch (apiError) {
+    } catch (apiError: any) {
       console.error(`[BMAD/${phase}] API error:`, apiError)
       const errorMsg = apiError instanceof Error ? apiError.message : String(apiError)
+      const statusCode = apiError?.status || apiError?.response?.status || 500
       
       if (errorMsg.includes('invalid') || errorMsg.includes('401') || errorMsg.includes('authentication')) {
         return new Response(JSON.stringify({ 
@@ -742,6 +742,23 @@ export async function POST(req: NextRequest) {
           code: 'AUTH_ERROR' 
         }), {
           status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      
+      // Handle Kimi-specific errors (rate limit, content filter, etc.)
+      if (provider === 'kimi') {
+        console.error(`[BMAD/${phase}] Kimi error details:`, {
+          status: statusCode,
+          message: errorMsg,
+          body: apiError?.error || apiError?.response?.body,
+        })
+        return new Response(JSON.stringify({ 
+          error: `Erreur Kimi API: ${errorMsg.substring(0, 200)}`,
+          code: 'PROVIDER_ERROR',
+          provider: 'kimi',
+        }), {
+          status: statusCode >= 400 ? statusCode : 500,
           headers: { 'Content-Type': 'application/json' },
         })
       }
