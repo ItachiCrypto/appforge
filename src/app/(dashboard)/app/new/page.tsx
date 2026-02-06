@@ -621,7 +621,14 @@ export default function NewAppPage() {
         body: JSON.stringify(body),
       })
       
-      const data = await res.json()
+      // Handle non-JSON responses gracefully
+      let data: { document?: string; error?: string }
+      try {
+        data = await res.json()
+      } catch {
+        const text = await res.text().catch(() => 'Unknown error')
+        throw new Error(`Erreur API: ${text.substring(0, 100)}`)
+      }
       
       if (!res.ok) {
         throw new Error(data.error || 'Erreur lors de la génération')
