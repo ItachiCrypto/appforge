@@ -24,7 +24,10 @@ import {
   type Story, 
   type Epic 
 } from '@/lib/bmad/parser'
-import { Preview, normalizeFilesForSandpack, DEFAULT_FILES, type AppType } from '@/components/preview'
+import { Preview, normalizeFilesForSandpack, DEFAULT_FILES, type AppType, type PreviewError } from '@/components/preview'
+
+// Max attempts to fix errors before moving on
+const MAX_FIX_ATTEMPTS = 3
 
 interface BuildModeProps {
   appId: string
@@ -64,11 +67,16 @@ export function BuildMode({
   const [files, setFiles] = useState<Record<string, string>>(DEFAULT_FILES[appType] || DEFAULT_FILES.WEB)
   const [previewVersion, setPreviewVersion] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<PreviewError | null>(null)
+  const [fixAttempts, setFixAttempts] = useState(0)
+  const [isFixingError, setIsFixingError] = useState(false)
   
   const abortControllerRef = useRef<AbortController | null>(null)
   const isRunningRef = useRef(false)
   const storiesRef = useRef<Story[]>([])
   const currentIndexRef = useRef(0)
+  const previewErrorRef = useRef<PreviewError | null>(null)
+  const waitingForPreviewRef = useRef(false)
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -78,6 +86,27 @@ export function BuildMode({
   useEffect(() => {
     currentIndexRef.current = currentStoryIndex
   }, [currentStoryIndex])
+
+  // Keep preview error ref in sync
+  useEffect(() => {
+    previewErrorRef.current = previewError
+  }, [previewError])
+
+  // Handle preview error callback
+  const handlePreviewError = useCallback((error: PreviewError) => {
+    console.log('[BuildMode] Preview error detected:', error.message)
+    setPreviewError(error)
+    previewErrorRef.current = error
+  }, [])
+
+  // Clear error when preview is successful
+  const handlePreviewSuccess = useCallback(() => {
+    if (previewErrorRef.current) {
+      console.log('[BuildMode] Preview success - clearing error')
+      setPreviewError(null)
+      previewErrorRef.current = null
+    }
+  }, [])
 
   // Parse epics on mount
   useEffect(() => {
@@ -151,6 +180,141 @@ export function BuildMode({
       addLog('info', '▶️ Build repris')
     }
   }, [status, addLog])
+
+  // Fix preview errors by sending them to the AI
+  const fixPreviewError = useCallback(async (error: PreviewError, storyId: string): Promise<boolean> => {
+    console.log('[BuildMode] Attempting to fix error:', error.message)
+    addLog('info', `🔧 Correction de l'erreur: ${error.message.substring(0, 50)}...`, storyId)
+    setIsFixingError(true)
+    
+    try {
+      abortControllerRef.current = new AbortController()
+      
+      const fixPrompt = `🔴 **Erreur de prévisualisation détectée:**
+
+\`\`\`
+${error.message}
+\`\`\`
+
+${error.file ? `📁 Fichier: \`${error.file}\`` : ''}
+${error.line ? `📍 Ligne: ${error.line}${error.column ? `, Colonne: ${error.column}` : ''}` : ''}
+
+**Corrige cette erreur immédiatement.** 
+- Analyse le message d'erreur
+- Trouve la cause (import manquant, syntaxe, variable undefined, etc.)
+- Corrige le fichier concerné avec \`write_file\`
+
+Ne fais QUE corriger l'erreur, pas d'autres modifications.`
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId,
+          messages: [{ role: 'user', content: fixPrompt }],
+          enableTools: true,
+        }),
+        signal: abortControllerRef.current.signal,
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No response body')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.type === 'tool_call') {
+                addLog('tool', `🔧 ${data.name}: ${data.arguments?.path || ''}`, storyId)
+              }
+              
+              if (data.type === 'tool_result' && data.success) {
+                // File was updated, refresh preview
+                const updatedApp = await fetch(`/api/apps/${appId}`).then(r => r.json())
+                if (updatedApp.files) {
+                  const normalized = normalizeFilesForSandpack(updatedApp.files)
+                  setFiles(normalized)
+                  onFilesUpdate(normalized)
+                  setPreviewVersion(v => v + 1)
+                }
+              }
+            } catch (parseErr) {
+              // Ignore
+            }
+          }
+        }
+      }
+
+      addLog('success', `✅ Correction appliquée`, storyId)
+      setIsFixingError(false)
+      return true
+      
+    } catch (err) {
+      console.error('[BuildMode] Fix error failed:', err)
+      addLog('error', `❌ Échec de la correction: ${(err as Error).message}`, storyId)
+      setIsFixingError(false)
+      return false
+    }
+  }, [appId, addLog, onFilesUpdate])
+
+  // Check for preview errors and fix them
+  const checkAndFixPreviewErrors = useCallback(async (storyId: string) => {
+    let attempts = 0
+    
+    while (attempts < MAX_FIX_ATTEMPTS) {
+      // Wait a bit for preview to settle
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      const currentError = previewErrorRef.current
+      
+      if (!currentError) {
+        console.log('[BuildMode] No preview errors detected')
+        addLog('success', `✅ Preview OK - pas d'erreurs`, storyId)
+        return
+      }
+      
+      attempts++
+      setFixAttempts(attempts)
+      console.log(`[BuildMode] Preview error detected, fix attempt ${attempts}/${MAX_FIX_ATTEMPTS}`)
+      addLog('info', `🔄 Tentative de correction ${attempts}/${MAX_FIX_ATTEMPTS}`, storyId)
+      
+      // Clear error before fixing (to detect new errors)
+      setPreviewError(null)
+      previewErrorRef.current = null
+      
+      // Try to fix the error
+      const fixed = await fixPreviewError(currentError, storyId)
+      
+      if (!fixed) {
+        console.log('[BuildMode] Fix attempt failed')
+        continue
+      }
+      
+      // Wait for preview to re-render after fix
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+    
+    // Max attempts reached
+    if (previewErrorRef.current) {
+      addLog('error', `⚠️ Erreurs persistantes après ${MAX_FIX_ATTEMPTS} tentatives - passage à la story suivante`, storyId)
+    }
+  }, [addLog, fixPreviewError])
 
   const buildNextStory = useCallback(async () => {
     console.log('[BuildMode] buildNextStory called, isRunning:', isRunningRef.current)
@@ -276,9 +440,25 @@ export function BuildMode({
         }
       }
 
-      // Move to next story after a short delay
+      // Wait for preview to update and check for errors
       if (isRunningRef.current) {
-        setTimeout(() => buildNextStory(), 1000)
+        // Give preview time to render and detect errors
+        addLog('info', `⏳ Vérification de la preview...`, story.storyId)
+        waitingForPreviewRef.current = true
+        setFixAttempts(0)
+        
+        // Wait 3 seconds for preview to render
+        await new Promise(resolve => setTimeout(resolve, 3000))
+        
+        // Check for preview errors and fix if needed
+        await checkAndFixPreviewErrors(story.storyId)
+        
+        waitingForPreviewRef.current = false
+        
+        // Move to next story
+        if (isRunningRef.current) {
+          setTimeout(() => buildNextStory(), 500)
+        }
       }
 
     } catch (err) {
@@ -301,7 +481,7 @@ export function BuildMode({
         }, 2000)
       }
     }
-  }, [appId, addLog, updateStoryStatus, onComplete, onFilesUpdate])
+  }, [appId, addLog, updateStoryStatus, onComplete, onFilesUpdate, checkAndFixPreviewErrors])
 
   // Note: Build is triggered from parseEpics useEffect, not from state changes
   // This avoids race conditions with stale closures
@@ -503,8 +683,25 @@ export function BuildMode({
               key={`preview-${previewVersion}`}
               files={files}
               appType={appType}
+              onError={handlePreviewError}
             />
           </div>
+          
+          {/* Error indicator */}
+          {previewError && (
+            <div className="absolute bottom-4 left-4 right-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <div className="flex items-center gap-2 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span className="truncate">{previewError.message.substring(0, 100)}</span>
+                {isFixingError && <Loader2 className="w-4 h-4 animate-spin ml-auto" />}
+              </div>
+              {fixAttempts > 0 && (
+                <div className="text-xs text-red-400/70 mt-1">
+                  Tentative de correction {fixAttempts}/{MAX_FIX_ATTEMPTS}...
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
